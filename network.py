@@ -18,7 +18,7 @@ from torchvision import datasets, models, transforms
 # import pixiedust
 import random
 from torch.utils import data
-
+NUM_EPOCHS=5
 print(torch.__version__)
 plt.ion()  # interactive mode
 torch.cuda.is_available()
@@ -106,17 +106,17 @@ print(f'Train image size: {dataset_sizes["train"]}')
 print(f'Validation image size: {dataset_sizes["val"]}')
 
 
-def imshow(inp, title=None):
-    """Imshow for Tensor."""
-    inp = inp.numpy().transpose((1, 2, 0))
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-    inp = std * inp + mean
-    inp = np.clip(inp, 0, 1)
-    plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
+# def imshow(inp, title=None):
+#     """Imshow for Tensor."""
+#     inp = inp.numpy().transpose((1, 2, 0))
+#     mean = np.array([0.485, 0.456, 0.406])
+#     std = np.array([0.229, 0.224, 0.225])
+#     inp = std * inp + mean
+#     inp = np.clip(inp, 0, 1)
+#     plt.imshow(inp)
+#     if title is not None:
+#         plt.title(title)
+#     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
 # # Get a batch of training data
@@ -128,111 +128,77 @@ def imshow(inp, title=None):
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
 
-
-def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2, checkpoint=None):
+def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
     since = time.time()
 
-    if checkpoint is None:
-        best_model_wts = copy.deepcopy(model.state_dict())
-        best_loss = math.inf
-        best_acc = 0.
-    else:
-        print('Val loss: {}, Val accuracy: {}'.format(checkpoint["best_val_loss"], checkpoint["best_val_accuracy"]))
-        model.load_state_dict(checkpoint['model_state_dict'])
-        best_model_wts = copy.deepcopy(model.state_dict())
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        if scheduler is not None:
-            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        best_loss = checkpoint['best_val_loss']
-        best_acc = checkpoint['best_val_accuracy']
+    test_accuracy_history = []
+    test_loss_history = []
 
     print("Starting epochs")
-    # outer = tqdm(total=num_epochs, desc='Epoch', position=0)
-    # inner = tqdm(total=(dataset_sizes['train'] // BATCH_SIZE), position=1)
     for epoch in range(num_epochs):
-        # outer.update(1)
+        model.train()  # Set model to training mode
 
-        # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                model.train()  # Set model to training mode
-            else:
-                model.eval()  # Set model to evaluate mode
+        for i, (inputs, labels) in enumerate(data['train']):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
-            running_loss = 0.0
-            running_corrects = 0
+            # zero the parameter gradients
+            optimizer.zero_grad()
 
-            total = dataset_sizes[phase] // BATCH_SIZE
+            # forward
+            # track history if only in train
+            with torch.set_grad_enabled(True):
+                outputs = model(inputs)
+                _, preds = torch.max(outputs, 1)
+                loss = criterion(outputs, labels)
 
-            # Handle tqdm inner loop counter
-            # inner.total = dataset_sizes[phase] // BATCH_SIZE
-            # inner.reset()
-            inner_total = 0
+                # backward + optimize only if in training phase
+                loss.backward()
+                optimizer.step()
 
-            # Iterate over data.
-            for i, (inputs, labels) in enumerate(data[phase]):
+        if scheduler is not None:
+            scheduler.step()
 
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+        epoch_loss, epoch_acc = eval_model(criterion, data, model, optimizer)
 
-                # zero the parameter gradients
-                optimizer.zero_grad()
-
-                if i > 0:
-                    report_str = f'[{epoch + 1}, {i}] loss: {(running_loss / i * inputs.size(0)):.3f}'
-                else:
-                    report_str = "first iteration"
-                print(report_str)
-                # Update inner tqdm, we are about to override the previous maximum, update maximum
-                # inner.update(1)  # Advance the tqdm counter
-                # inner.desc = f'Phase: {phase} ' + report_str
-
-                # forward
-                # track history if only in train
-                with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(inputs)
-                    _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)
-
-                    # backward + optimize only if in training phase
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
-
-                # statistics
-                running_loss += loss.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
-                # print("running_corrects =", running_corrects)
-
-            if phase == 'train' and scheduler is not None:
-                scheduler.step()
-
-            # inner.write("running_corrects=", running_corrects, " epoch: ", epoch)
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
-
-            # loss_str = f'Epoch: {epoch + 1} of {num_epochs}, {phase:6} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
-            # inner.write(loss_str)
-
-            # deep copy the model
-            if phase == 'val' and epoch_loss < best_loss:
-                # inner.write('New best model found!')
-                # inner.write(f'New record loss:{epoch_loss}, previous record loss: {best_loss}')
-                best_loss = epoch_loss
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
-                # save the weights
-                # torch.save(best_model_wts, CHECK_POINT_PATH)
-        print()
+        # save epoch loss and accuracy
+        test_accuracy_history.append(epoch_acc)
+        test_loss_history.append(epoch_loss)
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:.4f} Best val loss: {:.4f}'.format(best_acc, best_loss))
+    #return the last trained model
+    return model, test_accuracy_history, test_loss_history
 
-    # load best model weights
-    model.load_state_dict(best_model_wts)
-    return model, best_loss, best_acc
+
+def eval_model(criterion, data, model, optimizer):
+    model.eval()  # Set model to evaluate mode
+    running_loss = 0.0
+    running_corrects = 0
+
+    for i, (inputs, labels) in enumerate(data['val']):
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward
+        # track history if only in train
+        with torch.set_grad_enabled(False):
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+            loss = criterion(outputs, labels)
+
+        # statistics
+        running_loss += loss.item() * inputs.size(0)
+        running_corrects += torch.sum(preds == labels.data)
+
+        epoch_loss = running_loss / dataset_sizes['val']
+        epoch_acc = running_corrects.double() / dataset_sizes['val']
+
+    return epoch_loss, epoch_acc
 
 
 def main():
@@ -264,21 +230,14 @@ def main():
     optimizer_conv = optim.SGD(model_conv.fc.parameters(), lr=0.01, momentum=0.9)
     # Decay LR by a factor of 0.1 every 7 epochs
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=70, gamma=0.1)
-    # CHECK_POINT_PATH = 'ModelParams' / 'checkpoint.tar'
-    # !del $CHECK_POINT_PATH
-    # try:
-    #     checkpoint = torch.load(CHECK_POINT_PATH)
-    #     print("checkpoint loaded")
-    # except:
-    #     checkpoint = None
-    #     print("checkpoint not found")
-    model_conv, best_val_loss, best_val_acc = train_model(my_data,
+
+    model_conv, model, test_accuracy_history, test_loss_history = train_model(my_data,
                                                           model_conv,
                                                           criterion,
                                                           optimizer_conv,
                                                           exp_lr_scheduler,
-                                                          num_epochs=5,
-                                                          checkpoint=None)
+                                                          num_epochs=NUM_EPOCHS)
+
     # torch.save({'model_state_dict': model_conv.state_dict(),
     #             'optimizer_state_dict': optimizer_conv.state_dict(),
     #             'best_val_loss': best_val_loss,
