@@ -209,13 +209,13 @@ def main():
     # model_conv.eval()
     # # Train Model
     # Parameters of newly constructed modules have requires_grad=True by default
-    ct = 0
-    for child in model_conv.children():
-        ct += 1
-        # freezes layers 1-6 in the total 10 layers of Resnet50
-        if ct < 7:
-            for param in child.parameters():
-                param.requires_grad = False
+    # ct = 0
+    # for child in model_conv.children():
+    #     ct += 1
+    #     # freezes layers 1-6 in the total 10 layers of Resnet50
+    #     if ct < 7:
+    #         for param in child.parameters():
+    #             param.requires_grad = False
     num_ftrs = model_conv.fc.in_features
     model_conv.fc = nn.Linear(num_ftrs, len(class_names))
     model_conv = model_conv.to(device)
