@@ -19,9 +19,9 @@ from torchvision import datasets, models, transforms
 import random
 from torch.utils import data
 
-SAMPLE_SIZE = 24
+SAMPLE_SIZE = 8
 NUM_EPOCHS = 15
-BATCH_SIZE = 3
+BATCH_SIZE = 2
 
 print(torch.__version__)
 plt.ion()  # interactive mode
@@ -99,7 +99,6 @@ image_datasets = {x: datasets.ImageFolder(os.path.join(DATA_DIR, x),
 
 class_names = image_datasets['train'].classes
 
-# sample_size = 100
 # data, dataset_sizes =  create_train_val_slice(image_datasets,sample_size,True)
 my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
 
@@ -142,6 +141,7 @@ def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
 
     print("Starting epochs")
     for epoch in range(num_epochs):
+        print(f'Epoch: {epoch + 1} of {num_epochs}')
         model.train()  # Set model to training mode
         running_test_loss = 0.0
         for i, (inputs, labels) in enumerate(data['train']):
@@ -157,7 +157,9 @@ def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
                 outputs = model(inputs)
                 _, preds = torch.max(outputs, 1)
                 loss = criterion(outputs, labels)
-                train_loss_history.append(loss)
+                train_accuracy_history.append(torch.sum(preds == labels.data)/inputs.size(0))
+                train_loss_history.append(loss/inputs.size(0))
+                print(f'Train Loss: {loss/inputs.size(0):.4f} Train Acc: {torch.sum(preds == labels.data)/inputs.size(0):.4f}')
 
                 # backward + optimize only if in training phase
                 loss.backward()
@@ -203,9 +205,9 @@ def eval_model(criterion, data, model, optimizer):
         running_loss += loss.item() * inputs.size(0) #item.loss() is the average loss of the batch
         running_corrects += torch.sum(preds == labels.data)
 
-        epoch_loss = running_loss / dataset_sizes['val']
-        epoch_acc = running_corrects.double() / dataset_sizes['val']
-
+    epoch_loss = running_loss / dataset_sizes['val']
+    epoch_acc = running_corrects.double() / dataset_sizes['val']
+    print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
     return epoch_loss, epoch_acc
 
 
