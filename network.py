@@ -18,7 +18,11 @@ from torchvision import datasets, models, transforms
 # import pixiedust
 import random
 from torch.utils import data
-NUM_EPOCHS=5
+
+SAMPLE_SIZE = 24
+NUM_EPOCHS = 15
+BATCH_SIZE = 3
+
 print(torch.__version__)
 plt.ion()  # interactive mode
 torch.cuda.is_available()
@@ -65,7 +69,6 @@ data_transforms = {
 }
 
 # # Data Loader
-BATCH_SIZE = 1
 ''' The function takes the data loader and a parameter  '''
 
 def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=False):
@@ -98,7 +101,7 @@ class_names = image_datasets['train'].classes
 
 # sample_size = 100
 # data, dataset_sizes =  create_train_val_slice(image_datasets,sample_size,True)
-my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=5)
+my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Classes: ", class_names)
@@ -131,14 +134,18 @@ print(f'Validation image size: {dataset_sizes["val"]}')
 def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
     since = time.time()
 
+    train_accuracy_history = []
+    train_loss_history = []
+
     test_accuracy_history = []
     test_loss_history = []
 
     print("Starting epochs")
     for epoch in range(num_epochs):
         model.train()  # Set model to training mode
-
+        running_test_loss = 0.0
         for i, (inputs, labels) in enumerate(data['train']):
+            # data['train'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -146,18 +153,17 @@ def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
             optimizer.zero_grad()
 
             # forward
-            # track history if only in train
             with torch.set_grad_enabled(True):
                 outputs = model(inputs)
                 _, preds = torch.max(outputs, 1)
                 loss = criterion(outputs, labels)
+                train_loss_history.append(loss)
 
                 # backward + optimize only if in training phase
                 loss.backward()
                 optimizer.step()
 
-        if scheduler is not None:
-            scheduler.step()
+        scheduler.step() #scheduler step is performed per-epoch
 
         epoch_loss, epoch_acc = eval_model(criterion, data, model, optimizer)
 
@@ -178,6 +184,8 @@ def eval_model(criterion, data, model, optimizer):
     running_corrects = 0
 
     for i, (inputs, labels) in enumerate(data['val']):
+        # data['val'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
+
         inputs = inputs.to(device)
         labels = labels.to(device)
 
@@ -191,8 +199,8 @@ def eval_model(criterion, data, model, optimizer):
             _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
 
-        # statistics
-        running_loss += loss.item() * inputs.size(0)
+        # statistics - sum loss and accuracy on all batches
+        running_loss += loss.item() * inputs.size(0) #item.loss() is the average loss of the batch
         running_corrects += torch.sum(preds == labels.data)
 
         epoch_loss = running_loss / dataset_sizes['val']
@@ -209,13 +217,13 @@ def main():
     # model_conv.eval()
     # # Train Model
     # Parameters of newly constructed modules have requires_grad=True by default
-    # ct = 0
-    # for child in model_conv.children():
-    #     ct += 1
-    #     # freezes layers 1-6 in the total 10 layers of Resnet50
-    #     if ct < 7:
-    #         for param in child.parameters():
-    #             param.requires_grad = False
+    ct = 0
+    for child in model_conv.children():
+        ct += 1
+        # freezes layers 1-6 in the total 10 layers of Resnet50
+        if ct < 7:
+            for param in child.parameters():
+                param.requires_grad = False
     num_ftrs = model_conv.fc.in_features
     model_conv.fc = nn.Linear(num_ftrs, len(class_names))
     model_conv = model_conv.to(device)
@@ -229,9 +237,9 @@ def main():
     # Observe that only parameters of final layer are being optimized
     optimizer_conv = optim.SGD(model_conv.fc.parameters(), lr=0.01, momentum=0.9)
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=70, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
 
-    model_conv, model, test_accuracy_history, test_loss_history = train_model(my_data,
+    model_conv, test_accuracy_history, test_loss_history = train_model(my_data,
                                                           model_conv,
                                                           criterion,
                                                           optimizer_conv,
