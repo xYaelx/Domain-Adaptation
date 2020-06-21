@@ -68,7 +68,7 @@ data_transforms = {
     ])
 }
 
-# # Data Loader
+### Data Loader ###
 ''' The function takes the data loader and a parameter  '''
 
 def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=False):
@@ -129,6 +129,15 @@ print(f'Validation image size: {dataset_sizes["val"]}')
 # print(f"classes={classes}")
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
+def freeze_layers_grad(model, total_freeze_layers = 7):
+    # Parameters of newly constructed modules have requires_grad=True by default
+    layer = 0
+    for child in model.children():
+        layer += 1
+        # freezes layers 1-6 in the total 10 layers of Resnet50
+        if layer < total_freeze_layers:
+            for param in child.parameters():
+                param.requires_grad = False
 
 def train_model(data, model, criterion, optimizer, scheduler, num_epochs=2):
     since = time.time()
@@ -217,15 +226,8 @@ def main():
     # model_conv = torchvision.models.resnet50(pretrained=True)
     # model_conv = torchvision.models.resnet101(pretrained=True)
     # model_conv.eval()
-    # # Train Model
-    # Parameters of newly constructed modules have requires_grad=True by default
-    ct = 0
-    for child in model_conv.children():
-        ct += 1
-        # freezes layers 1-6 in the total 10 layers of Resnet50
-        if ct < 7:
-            for param in child.parameters():
-                param.requires_grad = False
+    ### Train Model ###
+    freeze_layers_grad(model_conv)
     num_ftrs = model_conv.fc.in_features
     model_conv.fc = nn.Linear(num_ftrs, len(class_names))
     model_conv = model_conv.to(device)
@@ -266,6 +268,8 @@ def main():
     # In[17]:
     image_datasets['train'].classes[0]
     # In[ ]:
+
+
 
 
 if __name__ == '__main__':
