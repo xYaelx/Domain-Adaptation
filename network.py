@@ -99,7 +99,6 @@ image_datasets = {x: datasets.ImageFolder(os.path.join(DATA_DIR, x),
 
 class_names = image_datasets['train'].classes
 
-# data, dataset_sizes =  create_train_val_slice(image_datasets,sample_size,True)
 my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -122,7 +121,7 @@ print(f'Validation image size: {dataset_sizes["val"]}')
 
 
 # # Get a batch of training data
-# inputs, classes = next(iter(dataloaders['train']))
+# inputs, classes = next(iter(my_data['train']))
 # # Make a grid from batch
 # sample_train_images = torchvision.utils.make_grid(inputs)
 # #imshow(sample_train_images, title=classes)
@@ -256,18 +255,17 @@ def main():
     #             'best_val_accuracy': best_val_acc,
     #             'scheduler_state_dict': exp_lr_scheduler.state_dict(),
     #             }, CHECK_POINT_PATH)
-    # # Test Model
-    model_conv.eval()
-    from pprint import pprint
-    x = 'train'
-    d = datasets.ImageFolder(os.path.join(DATA_DIR, x))
-    cnt = Counter([])
-    for i, (image, category) in enumerate(d):
-        cnt.update({(image_datasets['train'].classes)[category]: 1})
-    print(cnt)
-    # In[17]:
-    image_datasets['train'].classes[0]
-    # In[ ]:
+    ### Test Model ###
+    # model_conv.eval()
+
+    # x = 'train'
+    # d = datasets.ImageFolder(os.path.join(DATA_DIR, x))
+    # cnt = Counter([])
+    # for i, (image, category) in enumerate(d):
+    #     cnt.update({(image_datasets['train'].classes)[category]: 1})
+    # print(cnt)
+    # # In[17]:
+    # image_datasets['train'].classes[0]
 
 
 
