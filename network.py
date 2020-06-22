@@ -83,9 +83,14 @@ def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=F
     sample_n = {x: random.sample(list(range(dataset_sizes[x])), sample_size)
                 for x in ['train', 'val']}
 
-    image_datasets_reduced = {
-        x: torch.utils.data.Subset(image_datasets['train' if val_same_as_train else x], sample_n[x])
-        for x in ['train', 'val']}
+    image_datasets_reduced = {x: torch.utils.data.Subset(image_datasets[x], sample_n[x])
+                              for x in ['train', 'val']}
+
+    # clone the image_datasets_reduced[train] for the val
+    if val_same_as_train:
+        image_datasets_reduced['val'] = list(image_datasets_reduced['train'])
+        image_datasets_reduced['train'] = image_datasets_reduced['val'] #copy the train to val (so the tranformations won't occur again)
+
     dataset_sizes = {x: len(image_datasets_reduced[x]) for x in ['train', 'val']}
 
     dataloaders_reduced = {x: torch.utils.data.DataLoader(image_datasets_reduced[x], batch_size=BATCH_SIZE,
