@@ -218,8 +218,8 @@ def eval_model(criterion, data, model, optimizer):
     print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
     return epoch_loss, epoch_acc
 
-
-def main():
+### Test Model ###
+def test_model():
     global model_conv
     model_conv = torchvision.models.resnet18(pretrained=True)
     # model_conv = torchvision.models.resnet50(pretrained=True)
@@ -255,7 +255,6 @@ def main():
     #             'best_val_accuracy': best_val_acc,
     #             'scheduler_state_dict': exp_lr_scheduler.state_dict(),
     #             }, CHECK_POINT_PATH)
-    ### Test Model ###
     # model_conv.eval()
 
     # x = 'train'
@@ -264,14 +263,13 @@ def main():
     # for i, (image, category) in enumerate(d):
     #     cnt.update({(image_datasets['train'].classes)[category]: 1})
     # print(cnt)
-    # # In[17]:
     # image_datasets['train'].classes[0]
 
 
 
 
 if __name__ == '__main__':
-    main()
+    test_model()
 
 
 
