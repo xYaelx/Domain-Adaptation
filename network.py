@@ -91,7 +91,8 @@ def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=F
     # clone the image_datasets_reduced[train] for the val
     if val_same_as_train:
         image_datasets_reduced['val'] = list(image_datasets_reduced['train'])
-        image_datasets_reduced['train'] = image_datasets_reduced['val']  # copy the train to val (so the tranformations won't occur again)
+        # copy the train to val (so the tranformations won't occur again)
+        image_datasets_reduced['train'] = image_datasets_reduced['val']
 
     dataset_sizes = {x: len(image_datasets_reduced[x]) for x in ['train', 'val']}
 
@@ -145,36 +146,41 @@ def freeze_layers_grad(model, total_freeze_layers=7):
             for param in child.parameters():
                 param.requires_grad = False
 
-def train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2, writer=None):
+
+def train_model(males_data, females_data, model, label_criterion, domain_criterion, optimizer, scheduler, num_epochs=2, writer=None):
     since = time.time()
 
     print("Starting epochs")
     for epoch in range(1, num_epochs + 1):
         print(f'Epoch: {epoch} of {num_epochs}')
         model.train()  # Set model to training mode
-        running_test_loss = 0.0
         running_corrects = 0.0
-
-        for i, (inputs, labels) in enumerate(data['train']):
-            # data['train'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+        join_dataloader = zip(males_data['train'], females_data)  # TODO check how females_data is built
+        for i, (males_x, males_label), (females_x, _) in enumerate(join_dataloader):
+            # data['train'] contains (males_x, males_y) for every batch (so i=[1...NUM OF BATCHES]
+            x = torch.cat([males_x, females_x])
+            x = x.to(device)
+            label_y = males_label.to(device)
+            domain_y = torch.cat([torch.ones(males_x.shape[0]), torch.zeros(females_x.shape[0])])
+            domain_y = domain_y.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward
             with torch.set_grad_enabled(True):
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                label_loss = label_criterion(outputs, labels)
-
+                # TODO check at the end that model archtecture still outputs the class label
+                label_preds = model(x[:males_x.shape[0]]) # TODO check if x[:males_x.shape[0]] = males_x
+                _, preds = torch.max(label_preds, 1)
+                label_loss = label_criterion(label_preds, label_y)
+                domain_loss = domain_criterion(domain_preds, domain_y)
+                loss = label_loss
                 # backward + optimize only if in training phase
                 loss.backward()
                 optimizer.step()
 
-            batch_loss = label_loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
+            batch_loss = loss.item() * x.size(0)
+            running_corrects += torch.sum(preds == label_y.data)
 
             if writer is not None:  # save train label_loss for each batch
                 x_axis = 1000 * (epoch + i / (dataset_sizes['train'] // BATCH_SIZE))
@@ -190,7 +196,7 @@ def train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2
                               train_acc,
                               x_axis)
 
-        epoch_loss, epoch_acc = eval_model(label_criterion, data, model, optimizer)
+        epoch_loss, epoch_acc = eval_model(label_criterion, males_data, model, optimizer)
 
         if writer is not None:  # save epoch accuracy
             x_axis = epoch
@@ -198,14 +204,14 @@ def train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2
                               epoch_acc,
                               x_axis)
 
-    # TODO check stop condition by overfit
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
     # return the last trained model
     return model
 
-def train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2, writer=None):
+
+def original_train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2, writer=None):
     since = time.time()
 
     print("Starting epochs")
@@ -323,7 +329,8 @@ def run_experiment(data, lr_initial, gamma, step_size, weight_decay, num_of_epoc
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     # check optimizer and schedular due to ADAM
 
-    experiment_name = datetime.now().strftime("%Y%m%d-%H%M%S") + f'_lr_{lr_initial}_st_{step_size}_gma_{gamma}_wDK_{weight_decay}'
+    experiment_name = datetime.now().strftime(
+        "%Y%m%d-%H%M%S") + f'_lr_{lr_initial}_st_{step_size}_gma_{gamma}_wDK_{weight_decay}'
     print("Experiment name: ", experiment_name)
 
     writer = SummaryWriter('runs/' + experiment_name)
@@ -361,6 +368,6 @@ def main():
         # print(cnt)
         # image_datasets['train'].classes[0]
 
+
 if __name__ == '__main__':
     main()
-
