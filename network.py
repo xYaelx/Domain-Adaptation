@@ -5,18 +5,18 @@ import torchvision
 import matplotlib.pyplot as plt
 import time
 import os
-import copy
-import math
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
 from itertools import islice
-from collections import Counter
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, models, transforms
+from dataclasses import dataclass
+from utils import GradientReversal
+
 # import itertools
 # import pixiedust
 import random
@@ -39,6 +39,7 @@ torch.cuda.is_available()
 #     LABS_DIR = Path('C:/Labs/')
 
 DATA_DIR = 'Data'
+
 
 #### sanity check for the images
 # classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
@@ -70,9 +71,6 @@ data_transforms = {
 }
 
 ### Data Loader ###
-''' The function takes the data loader and a parameter  '''
-
-
 def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=False):
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
 
@@ -171,7 +169,12 @@ def train_model(males_data, females_data, model, label_criterion, domain_criteri
             with torch.set_grad_enabled(True):
                 # TODO check at the end that model archtecture still outputs the class label
                 label_preds = model(x[:males_x.shape[0]]) # TODO check if x[:males_x.shape[0]] = males_x
-                _, preds = torch.max(label_preds, 1)
+                _, preds = torch.max(label_preds, 1) # TODO check the use of preds
+                # TODO check the discriminator
+                extracted_features = activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
+                extracted_features = extracted_features.view(extracted_features.shape[0], -1)
+                domain_preds = model.discriminator(extracted_features)
+
                 label_loss = label_criterion(label_preds, label_y)
                 domain_loss = domain_criterion(domain_preds, domain_y)
                 loss = label_loss
@@ -309,8 +312,26 @@ def get_model():
     # model_conv = torchvision.models.resnet101(pretrained=True)
 
     num_ftrs = model_conv.fc.in_features
-    model_conv.fc = nn.Sequential()
-    classifier = nn.Linear(num_ftrs, len(class_names))
+    model_conv.fc  = nn.Linear(num_ftrs, len(class_names))
+
+    model_conv.activation = {}
+
+    def get_activation(name):
+        def hook(model, input, output):
+            model.activation[name] = output  # .detach()
+
+        return hook
+
+    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
+    model_conv.discriminator = nn.Sequential(
+        GradientReversal(),
+        nn.Linear(num_ftrs, 50),
+        nn.ReLU(),
+        nn.Linear(50, 20),
+        nn.ReLU(),
+        nn.Linear(20, 1)
+    ).to(device)
+
     model_conv = model_conv.to(device)
     return model_conv
 
