@@ -41,6 +41,22 @@ torch.cuda.is_available()
 DATA_DIR = 'Data'
 
 
+@dataclass
+class TrainingParams:
+    optimizer: torch.optim
+    scheduler: torch.optim
+    num_epochs = int
+
+class TrainingParams:
+    def __init__(self, lr, weight_decay, step_size, gamma, num_epochs):
+        self.model = get_model()
+        self.label_criterion = nn.CrossEntropyLoss()  # softmax+log
+        self.domain_criterion = nn.binary_cross_entropy_with_logits() # TODO check this loss criterion
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.num_epochs = num_epochs
+
+
 #### sanity check for the images
 # classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
 # for emotion in classes:
@@ -69,6 +85,7 @@ data_transforms = {
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 }
+
 
 ### Data Loader ###
 def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=False):
@@ -135,13 +152,13 @@ print(f'Validation image size: {dataset_sizes["val"]}')
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
 
-def train_model(males_data, females_data, model, label_criterion, domain_criterion, optimizer, scheduler, num_epochs=2, writer=None):
+def train_model(males_data, females_data, training_params, writer=None):
     since = time.time()
 
     print("Starting epochs")
-    for epoch in range(1, num_epochs + 1):
-        print(f'Epoch: {epoch} of {num_epochs}')
-        model.train()  # Set model to training mode
+    for epoch in range(1, training_params.num_epochs + 1):
+        print(f'Epoch: {epoch} of {training_params.num_epochs}')
+        training_params.model.train()  # Set model to training mode
         running_corrects = 0.0
         join_dataloader = zip(males_data['train'], females_data)  # TODO check how females_data is built
         for i, (males_x, males_label), (females_x, _) in enumerate(join_dataloader):
@@ -153,49 +170,42 @@ def train_model(males_data, females_data, model, label_criterion, domain_criteri
             domain_y = domain_y.to(device)
 
             # zero the parameter gradients
-            optimizer.zero_grad()
+            training_params.optimizer.zero_grad()
 
             # forward
             with torch.set_grad_enabled(True):
-                # TODO check at the end that model archtecture still outputs the class label
-                label_preds = model(x[:males_x.shape[0]]) # TODO check if x[:males_x.shape[0]] = males_x
-                _, preds = torch.max(label_preds, 1) # TODO check the use of preds
-                # TODO check the discriminator
-                extracted_features = activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
-                extracted_features = extracted_features.view(extracted_features.shape[0], -1)
-                domain_preds = model.discriminator(extracted_features)
+                label_preds = training_params.model(x[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
+                label_loss = training_params.label_criterion(label_preds, label_y)
 
-                label_loss = label_criterion(label_preds, label_y)
-                domain_loss = domain_criterion(domain_preds, domain_y)
-                loss = label_loss
+                # TODO check the discriminator
+                extracted_features = training_params.model.activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
+                extracted_features = extracted_features.view(extracted_features.shape[0], -1)
+                domain_preds = training_params.model.discriminator(extracted_features).squeeze()
+                domain_loss = training_params.domain_criterion(domain_preds, domain_y)
+
+                loss = label_loss+domain_loss
                 # backward + optimize only if in training phase
                 loss.backward()
-                optimizer.step()
+                training_params.optimizer.step()
 
             batch_loss = loss.item() * x.size(0)
-            running_corrects += torch.sum(preds == label_y.data)
+            running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data)
 
             if writer is not None:  # save train label_loss for each batch
                 x_axis = 1000 * (epoch + i / (dataset_sizes['train'] // BATCH_SIZE))
                 writer.add_scalar('batch label_loss', batch_loss / BATCH_SIZE, x_axis)
 
-        if scheduler is not None:
-            scheduler.step()  # scheduler step is performed per-epoch in the training phase
+        if training_params.scheduler is not None:
+            training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
 
         train_acc = running_corrects / dataset_sizes['train']
-        if writer is not None:  # save epoch accuracy
-            x_axis = epoch
-            writer.add_scalar('accuracy-train',
-                              train_acc,
-                              x_axis)
 
-        epoch_loss, epoch_acc = eval_model(label_criterion, males_data, model, optimizer)
+        epoch_loss, epoch_acc = eval_model(males_data, training_params)
 
         if writer is not None:  # save epoch accuracy
             x_axis = epoch
-            writer.add_scalar('accuracy-val',
-                              epoch_acc,
-                              x_axis)
+            writer.add_scalar('accuracy-train', train_acc, x_axis)
+            writer.add_scalar('accuracy-val', epoch_acc, x_axis)
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -265,8 +275,8 @@ def original_train_model(data, model, label_criterion, optimizer, scheduler, num
     return model
 
 
-def eval_model(criterion, data, model, optimizer):
-    model.eval()  # Set model to evaluate mode
+def eval_model(data, training_params):
+    training_params.model.eval()  # Set model to evaluate mode
     running_loss = 0.0
     running_corrects = 0
 
@@ -277,18 +287,18 @@ def eval_model(criterion, data, model, optimizer):
         labels = labels.to(device)
 
         # zero the parameter gradients
-        optimizer.zero_grad()
+        training_params.optimizer.zero_grad()
 
         # forward
         # track history if only in train
         with torch.set_grad_enabled(False):
-            outputs = model(inputs)
+            outputs = training_params.model(inputs)
             _, preds = torch.max(outputs, 1)
-            loss = criterion(outputs, labels)
+            loss = training_params.label_criterion(outputs, labels)
 
         # statistics - sum loss and accuracy on all batches
         running_loss += loss.item() * inputs.size(0)  # item.loss() is the average loss of the batch
-        running_corrects += torch.sum(preds == labels.data)
+        running_corrects += torch.sum(outputs.max(1)[1] == labels.data)
 
     epoch_loss = running_loss / dataset_sizes['val']
     epoch_acc = running_corrects.double() / dataset_sizes['val']
@@ -302,7 +312,7 @@ def get_model():
     # model_conv = torchvision.models.resnet101(pretrained=True)
 
     num_ftrs = model_conv.fc.in_features
-    model_conv.fc  = nn.Linear(num_ftrs, len(class_names))
+    model_conv.fc = nn.Linear(num_ftrs, len(class_names))
 
     model_conv.activation = {}
 
@@ -332,25 +342,14 @@ def run_experiment(data, lr_initial, gamma, step_size, weight_decay, num_of_epoc
     Gets all hyper parameters and creates the relevant optimizer and scheduler according to those params
 
     """
-    model_net = get_model()
-    criterion = nn.CrossEntropyLoss()  # softmax+log
-    optimizer = optim.Adam(model_net.parameters(), lr=lr_initial, weight_decay=weight_decay)
-
-    # decay LR by a factor of gamma every step_size epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-    # check optimizer and schedular due to ADAM
-
+    training_params = TrainingParams(lr_initial, weight_decay, step_size, gamma, num_of_epochs)
     experiment_name = datetime.now().strftime(
         "%Y%m%d-%H%M%S") + f'_lr_{lr_initial}_st_{step_size}_gma_{gamma}_wDK_{weight_decay}'
     print("Experiment name: ", experiment_name)
 
     writer = SummaryWriter('runs/' + experiment_name)
     trained_model = train_model(data,
-                                model_net,
-                                criterion,
-                                optimizer,
-                                exp_lr_scheduler,
-                                num_epochs=num_of_epochs,
+                               training_params,
                                 writer=writer)
     return trained_model
 
