@@ -134,16 +134,6 @@ print(f'Validation image size: {dataset_sizes["val"]}')
 # print(f"classes={classes}")
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
-def freeze_layers_grad(model, total_freeze_layers=7):
-    # Parameters of newly constructed modules have requires_grad=True by default
-    layer = 0
-    for child in model.children():
-        layer += 1
-        # freezes layers 1-6 in the total 10 layers of Resnet50
-        if layer < total_freeze_layers:
-            for param in child.parameters():
-                param.requires_grad = False
-
 
 def train_model(males_data, females_data, model, label_criterion, domain_criterion, optimizer, scheduler, num_epochs=2, writer=None):
     since = time.time()
