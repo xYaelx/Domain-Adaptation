@@ -10,6 +10,15 @@ def set_requires_grad(model, requires_grad=True):
     for param in model.parameters():
         param.requires_grad = requires_grad
 
+def freeze_layers_grad(model, total_freeze_layers=7):
+    # Parameters of newly constructed modules have requires_grad=True by default
+    layer = 0
+    for child in model.children():
+        layer += 1
+        # freezes layers 1-6 in the total 10 layers of Resnet50
+        if layer < total_freeze_layers:
+            for param in child.parameters():
+                param.requires_grad = False
 
 def loop_iterable(iterable):
     while True:
