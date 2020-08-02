@@ -14,14 +14,15 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, models, transforms
-from dataclasses import dataclass
 from utils import GradientReversal
 
 # import itertools
 # import pixiedust
 import random
 from torch.utils import data
-
+DATA_DIR = 'Data'
+DATA_DIR_M = 'Data/Male'
+DATA_DIR_F = 'Data/Female'
 SAMPLE_SIZE = 8
 NUM_EPOCHS = 15
 BATCH_SIZE = 2
@@ -38,20 +39,11 @@ torch.cuda.is_available()
 # except:
 #     LABS_DIR = Path('C:/Labs/')
 
-DATA_DIR = 'Data'
-
-
-@dataclass
-class TrainingParams:
-    optimizer: torch.optim
-    scheduler: torch.optim
-    num_epochs = int
-
 class TrainingParams:
     def __init__(self, lr, weight_decay, step_size, gamma, num_epochs):
         self.model = get_model()
         self.label_criterion = nn.CrossEntropyLoss()  # softmax+log
-        self.domain_criterion = nn.binary_cross_entropy_with_logits() # TODO check this loss criterion
+        self.domain_criterion = nn.binary_cross_entropy_with_logits # TODO check this loss criterion
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.num_epochs = num_epochs
@@ -116,19 +108,14 @@ def create_train_val_slice(image_datasets, sample_size=None, val_same_as_train=F
     return dataloaders_reduced, dataset_sizes
 
 
-image_datasets = {x: datasets.ImageFolder(os.path.join(DATA_DIR, x),
-                                          data_transforms[x])
-                  for x in ['train', 'val']}
+# image_datasets = {x: datasets.ImageFolder(os.path.join(DATA_DIR, x), data_transforms[x])
+#                   for x in ['train', 'val']}
+# class_names = image_datasets['train'].classes
+# my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
 
-class_names = image_datasets['train'].classes
 
-my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print("Classes: ", class_names)
-print(f'Train image size: {dataset_sizes["train"]}')
-print(f'Validation image size: {dataset_sizes["val"]}')
-
 
 # def imshow(inp, title=None):
 #     """Imshow for Tensor."""
@@ -160,11 +147,11 @@ def train_model(males_data, females_data, training_params, writer=None):
         print(f'Epoch: {epoch} of {training_params.num_epochs}')
         training_params.model.train()  # Set model to training mode
         running_corrects = 0.0
-        join_dataloader = zip(males_data['train'], females_data)  # TODO check how females_data is built
-        for i, (males_x, males_label), (females_x, _) in enumerate(join_dataloader):
+        join_dataloader = zip(males_data['train'], females_data['train'])  # TODO check how females_data is built
+        for i, ((males_x, males_label), (females_x, _)) in enumerate(join_dataloader):
             # data['train'] contains (males_x, males_y) for every batch (so i=[1...NUM OF BATCHES]
-            x = torch.cat([males_x, females_x])
-            x = x.to(device)
+            samples = torch.cat([males_x, females_x])
+            samples = samples.to(device)
             label_y = males_label.to(device)
             domain_y = torch.cat([torch.ones(males_x.shape[0]), torch.zeros(females_x.shape[0])])
             domain_y = domain_y.to(device)
@@ -174,7 +161,7 @@ def train_model(males_data, females_data, training_params, writer=None):
 
             # forward
             with torch.set_grad_enabled(True):
-                label_preds = training_params.model(x[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
+                label_preds = training_params.model(samples[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
                 label_loss = training_params.label_criterion(label_preds, label_y)
 
                 # TODO check the discriminator
@@ -188,7 +175,7 @@ def train_model(males_data, females_data, training_params, writer=None):
                 loss.backward()
                 training_params.optimizer.step()
 
-            batch_loss = loss.item() * x.size(0)
+            batch_loss = loss.item() * samples.size(0)
             running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data)
 
             if writer is not None:  # save train label_loss for each batch
@@ -198,7 +185,7 @@ def train_model(males_data, females_data, training_params, writer=None):
         if training_params.scheduler is not None:
             training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
 
-        train_acc = running_corrects / dataset_sizes['train']
+        train_acc = running_corrects / dataset_sizes['train'] # TODO change the accuracy ratio by the relevant dataset
 
         epoch_loss, epoch_acc = eval_model(males_data, training_params)
 
@@ -211,69 +198,7 @@ def train_model(males_data, females_data, training_params, writer=None):
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
     # return the last trained model
-    return model
-
-
-def original_train_model(data, model, label_criterion, optimizer, scheduler, num_epochs=2, writer=None):
-    since = time.time()
-
-    print("Starting epochs")
-    for epoch in range(1, num_epochs + 1):
-        print(f'Epoch: {epoch} of {num_epochs}')
-        model.train()  # Set model to training mode
-        running_test_loss = 0.0
-        running_corrects = 0.0
-
-        for i, (inputs, labels) in enumerate(data['train']):
-            # data['train'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward
-            with torch.set_grad_enabled(True):
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                label_loss = label_criterion(outputs, labels)
-
-                # backward + optimize only if in training phase
-                label_loss.backward()
-                optimizer.step()
-
-            batch_loss = label_loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
-
-            if writer is not None:  # save train label_loss for each batch
-                x_axis = 1000 * (epoch + i / (dataset_sizes['train'] // BATCH_SIZE))
-                writer.add_scalar('batch label_loss', batch_loss / BATCH_SIZE, x_axis)
-
-        if scheduler is not None:
-            scheduler.step()  # scheduler step is performed per-epoch in the training phase
-
-        train_acc = running_corrects / dataset_sizes['train']
-        if writer is not None:  # save epoch accuracy
-            x_axis = epoch
-            writer.add_scalar('accuracy-train',
-                              train_acc,
-                              x_axis)
-
-        epoch_loss, epoch_acc = eval_model(label_criterion, data, model, optimizer)
-
-        if writer is not None:  # save epoch accuracy
-            x_axis = epoch
-            writer.add_scalar('accuracy-val',
-                              epoch_acc,
-                              x_axis)
-
-    # TODO check stop condition by overfit
-    time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
-        time_elapsed // 60, time_elapsed % 60))
-    # return the last trained model
-    return model
-
+    return training_params.model
 
 def eval_model(data, training_params):
     training_params.model.eval()  # Set model to evaluate mode
@@ -337,7 +262,7 @@ def get_model():
 
 
 # Tensorboard Stuff
-def run_experiment(data, lr_initial, gamma, step_size, weight_decay, num_of_epochs):
+def run_experiment(data_m, data_f, lr_initial, gamma, step_size, weight_decay, num_of_epochs):
     """
     Gets all hyper parameters and creates the relevant optimizer and scheduler according to those params
 
@@ -348,18 +273,30 @@ def run_experiment(data, lr_initial, gamma, step_size, weight_decay, num_of_epoc
     print("Experiment name: ", experiment_name)
 
     writer = SummaryWriter('runs/' + experiment_name)
-    trained_model = train_model(data,
-                               training_params,
-                                writer=writer)
+    trained_model = train_model(data_m, data_f, training_params, writer=writer)
     return trained_model
 
 
 def main():
+    image_m_dataset = {x: datasets.ImageFolder(os.path.join(DATA_DIR_M, x), data_transforms[x])
+                       for x in ['train', 'val']}
+    data_male, dataset_male_sizes = create_train_val_slice(image_m_dataset, sample_size=SAMPLE_SIZE,
+                                                           val_same_as_train=False)
+
+    image_f_dataset = {x: datasets.ImageFolder(os.path.join(DATA_DIR_F, x), data_transforms[x])
+                       for x in ['train', 'val']}
+    data_female, dataset_female_sizes = create_train_val_slice(image_f_dataset, sample_size=SAMPLE_SIZE,
+                                                               val_same_as_train=False)
+    print("Classes: ", class_names)
+    print(f'Train image size: {dataset_sizes["train"]}')
+    print(f'Validation image size: {dataset_sizes["val"]}')
+
+    class_names = image_m_dataset['train'].classes
     for lr in [0.0005, 0.0001]:
         for scheduler_step_size in [5, 7, 9]:
             for scheduler_gamma in [0.1, 0.3, 0.5]:
                 for weight_decay in [0.01, 0.1]:
-                    model_conv = run_experiment(my_data, lr, scheduler_gamma, scheduler_step_size, weight_decay,
+                    model_conv = run_experiment(data_male, data_female, lr, scheduler_gamma, scheduler_step_size, weight_decay,
                                                 NUM_EPOCHS)
 
         # torch.save({'model_state_dict': model_conv.state_dict(),
