@@ -4,25 +4,20 @@ import numpy as np
 import torchvision
 import matplotlib.pyplot as plt
 from torch.utils.data import dataloader
-
 import DataLoaders
 import time
-import os
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
-from itertools import islice
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets, models, transforms
 from utils import GradientReversal
 
 # import itertools
 # import pixiedust
-import random
-from torch.utils import data
+
 DATA_DIR = 'Data'
 DATA_DIR_M = 'Data/Male'
 DATA_DIR_F = 'Data/Female'
