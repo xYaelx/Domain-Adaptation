@@ -39,12 +39,41 @@ torch.cuda.is_available()
 
 class TrainingParams:
     def __init__(self, lr, weight_decay, step_size, gamma, num_epochs,num_classes):
-        self.model = get_model(num_classes)
+        self.model = self.get_model(num_classes)
         self.label_criterion = nn.CrossEntropyLoss()  # softmax+log
         self.domain_criterion = nn.binary_cross_entropy_with_logits # TODO check this loss criterion
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.num_epochs = num_epochs
+
+    def get_model(class_names):
+        model_conv = torchvision.models.resnet18(pretrained=True)
+        # model_conv = torchvision.models.resnet50(pretrained=True)
+        # model_conv = torchvision.models.resnet101(pretrained=True)
+
+        num_ftrs = model_conv.fc.in_features
+        model_conv.fc = nn.Linear(num_ftrs, len(class_names))
+
+        model_conv.activation = {}
+
+        def get_activation(name):
+            def hook(model, input, output):
+                model.activation[name] = output  # .detach()
+
+            return hook
+
+        model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
+        model_conv.discriminator = nn.Sequential(
+            GradientReversal(),
+            nn.Linear(num_ftrs, 50),
+            nn.ReLU(),
+            nn.Linear(50, 20),
+            nn.ReLU(),
+            nn.Linear(20, 1)
+        ).to(device)
+
+        model_conv = model_conv.to(device)
+        return model_conv
 
 
 #### sanity check for the images
@@ -176,34 +205,7 @@ def eval_model(dataloader, training_params):
     return epoch_loss, epoch_acc
 
 
-def get_model(class_names):
-    model_conv = torchvision.models.resnet18(pretrained=True)
-    # model_conv = torchvision.models.resnet50(pretrained=True)
-    # model_conv = torchvision.models.resnet101(pretrained=True)
 
-    num_ftrs = model_conv.fc.in_features
-    model_conv.fc = nn.Linear(num_ftrs, len(class_names))
-
-    model_conv.activation = {}
-
-    def get_activation(name):
-        def hook(model, input, output):
-            model.activation[name] = output  # .detach()
-
-        return hook
-
-    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
-    model_conv.discriminator = nn.Sequential(
-        GradientReversal(),
-        nn.Linear(num_ftrs, 50),
-        nn.ReLU(),
-        nn.Linear(50, 20),
-        nn.ReLU(),
-        nn.Linear(20, 1)
-    ).to(device)
-
-    model_conv = model_conv.to(device)
-    return model_conv
 
 
 # Tensorboard Stuff
