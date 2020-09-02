@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ## Domain-Adaptation Project
 An implementation of the article ["Domain-Adversarial Training of Neural Networks" (2016)](https://arxiv.org/pdf/1505.07818.pdf) by Ganin et al. This article deals with the ["Domain Adptation"](https://en.wikipedia.org/wiki/Domain_adaptation) problem which happens often in machine learning.
 
