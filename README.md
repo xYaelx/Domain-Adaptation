@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## Domain-Adaptation Project
 An implementation of the article ["Domain-Adversarial Training of Neural Networks" (2016)](https://arxiv.org/pdf/1505.07818.pdf) by Ganin et al. This article deals with the ["Domain Adptation"](https://en.wikipedia.org/wiki/Domain_adaptation) problem which happens often in machine learning.
 
@@ -24,3 +25,6 @@ Gradient reversal ensures that the feature distributions over the two
 domains are made similar (as indistinguishable as possible for the domain classifier), thus resulting in the domain-invariant features.
 
 We implemented this architecture and tested it as a variation of the classic task of recognition of seven emotional states (neutral, joy, sadness, surprise, anger, fear, disgust) based on facial expressions. The two domains are “Women” and “Men” and the domain-adaptation challenge is training the network on one sex and applying it on the other. 
+=======
+# classificationProject
+>>>>>>> add README
