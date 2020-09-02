@@ -14,6 +14,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from utils import GradientReversal
+from enum import Enum
 
 # import itertools
 # import pixiedust
@@ -37,7 +38,19 @@ torch.cuda.is_available()
 # except:
 #     LABS_DIR = Path('C:/Labs/')
 
+
+class NET_ARCHICECTURE(Enum):
+    '''
+    ENUM object for dropout option
+    '''
+    NO_FC = 0
+    ONE_FC = 1
+    TWO_FC = 2
+
 class TrainingParams:
+    '''
+    An object that contains all parameters the model needs for training: the architecture, loss criterions, num of epochs
+    '''
     def __init__(self, lr, weight_decay, step_size, gamma, num_epochs,num_classes):
         self.model = self.get_model(num_classes)
         self.label_criterion = nn.CrossEntropyLoss()  # softmax+log
@@ -46,10 +59,14 @@ class TrainingParams:
         self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.num_epochs = num_epochs
 
-    def get_model(class_names):
+    def get_model(self, class_names, , architecure : NET_ARCHICECTURE):
         model_conv = torchvision.models.resnet18(pretrained=True)
         # model_conv = torchvision.models.resnet50(pretrained=True)
         # model_conv = torchvision.models.resnet101(pretrained=True)
+        DROPOUT_PROB = 0.5
+
+        # TODO: add dropout architecture
+        if architecure == NO_FC:
 
         num_ftrs = model_conv.fc.in_features
         model_conv.fc = nn.Linear(num_ftrs, len(class_names))
@@ -114,6 +131,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def train_model(males_dataloader, females_dataloader, training_params, writer=None):
+    '''
+    The whole training process
+    :param males_dataloader:
+    :param females_dataloader:
+    :param training_params:
+    :param writer:
+    :return: the trained model
+    '''
     since = time.time()
 
     print("Starting epochs")
@@ -175,6 +200,12 @@ def train_model(males_dataloader, females_dataloader, training_params, writer=No
     return training_params.model
 
 def eval_model(dataloader, training_params):
+    '''
+    class used for test and Validation
+    :param dataloader:
+    :param training_params:
+    :return: loss and accuracy
+    '''
     training_params.model.eval()  # Set model to evaluate mode
     running_loss = 0.0
     running_corrects = 0
