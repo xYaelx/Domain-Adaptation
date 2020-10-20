@@ -40,29 +40,25 @@ class DataLoaders:
                                                                     val_same_as_train=self.val_same_as_train)
 
     def create_train_val_slice(self, image_datasets, sample_size=None, val_same_as_train=False):
-        dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+        img_dataset = image_datasets # reminder - this is a generator
 
-        if not sample_size:  # return the whole data
-            dataloaders = {x: data.DataLoader(image_datasets[x], batch_size=self.batch_size,
-                                              shuffle=True, num_workers=0)
-                           for x in ['train', 'val']}
-            return dataloaders, dataset_sizes
-
-        sample_n = {x: random.sample(list(range(dataset_sizes[x])), sample_size)
-                    for x in ['train', 'val']}
-
-        image_datasets_reduced = {x: data.Subset(image_datasets[x], sample_n[x]) for x in ['train', 'val']}
-
-        # clone the image_datasets_reduced[train] for the val
+        # clone the image_datasets_reduced[train] generator for the val
         if val_same_as_train:
-            image_datasets_reduced['val'] = list(image_datasets_reduced['train'])
+            img_dataset['val'] = list(img_dataset['train'])
             # copy the train to val (so the tranformations won't occur again)
-            image_datasets_reduced['train'] = image_datasets_reduced['val']
+            # image_datasets_reduced['train'] = image_datasets_reduced['val']
 
-        dataset_sizes = {x: len(image_datasets_reduced[x]) for x in ['train', 'val']}
+        dataset_sizes = {x: len(img_dataset[x]) for x in ['train', 'val']}
 
-        dataloaders_reduced = {x: data.DataLoader(image_datasets_reduced[x], batch_size=self.batch_size,
-                                                  shuffle=True, num_workers=0) for x in ['train', 'val']}
-        return dataloaders_reduced, dataset_sizes
+        if sample_size:  # return the whole data set
+            sample_n = {x: random.sample(list(range(dataset_sizes[x])), sample_size) for x in ['train', 'val']}
+            img_dataset = {x: data.Subset(img_dataset[x], sample_n[x]) for x in ['train', 'val']}
+            dataset_sizes = {x: len(img_dataset[x]) for x in ['train', 'val']}
+
+        dataloaders = {x: data.DataLoader(img_dataset[x], batch_size=self.batch_size,
+                                                      shuffle=True, num_workers=0) for x in ['train', 'val']}
+        return dataloaders, dataset_sizes
+
+
 
 
