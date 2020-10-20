@@ -61,15 +61,33 @@ class TrainingParams:
 
     def get_model(self, class_names, , architecure : NET_ARCHICECTURE):
         model_conv = torchvision.models.resnet18(pretrained=True)
-        # model_conv = torchvision.models.resnet50(pretrained=True)
-        # model_conv = torchvision.models.resnet101(pretrained=True)
         DROPOUT_PROB = 0.5
-
-        # TODO: add dropout architecture
-        if architecure == NO_FC:
-
         num_ftrs = model_conv.fc.in_features
-        model_conv.fc = nn.Linear(num_ftrs, len(class_names))
+
+        # dropout architecture
+        if architecure == NET_ARCHICECTURE.NO_FC:
+            new_lin = nn.Linear(num_ftrs, len(class_names))
+        elif architecure == NET_ARCHICECTURE.ONE_FC:
+            new_lin = nn.Sequential(
+                nn.Linear(num_ftrs, 64),
+                nn.ReLU(),
+                nn.Dropout(DROPOUT_PROB),
+                nn.Linear(64, len(class_names))
+            )
+        elif architecure == NET_ARCHICECTURE.TWO_FC:
+            new_lin = nn.Sequential(
+                nn.Linear(num_ftrs, 50),
+                nn.ReLU(),
+                nn.Dropout(DROPOUT_PROB),
+                nn.Linear(50, 20),
+                nn.ReLU(),
+                nn.Dropout(DROPOUT_PROB),
+                nn.Linear(20, len(class_names))
+            )
+        else:
+            raise Exception(f"Value {architecure} illegal")
+
+        model_conv.fc = new_lin
 
         model_conv.activation = {}
 
@@ -98,13 +116,6 @@ class TrainingParams:
 # for emotion in classes:
 #     print("Class =",emotion)
 #     !ls $DATA_DIR\VAL\$emotion | wc -l
-
-
-# image_datasets = {x: datasets.ImageFolder(os.path.join(DATA_DIR, x), data_transforms[x])
-#                   for x in ['train', 'val']}
-# my_data, dataset_sizes = create_train_val_slice(image_datasets, sample_size=SAMPLE_SIZE)
-
-
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
