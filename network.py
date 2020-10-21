@@ -186,7 +186,7 @@ def train_model(males_dataloader, females_dataloader, training_params, writer=No
                 training_params.optimizer.step()
 
             batch_loss = loss.item() * samples.size(0)
-            running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data)
+            running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data).item()
 
             if writer is not None:  # save train label_loss for each batch
                 x_axis = 1000 * (epoch + i / (males_dataloader.dataset_size['train'] // BATCH_SIZE))#TODO devidie by batch size or batch size//2?
@@ -219,7 +219,7 @@ def eval_model(dataloader, training_params):
     '''
     training_params.model.eval()  # Set model to evaluate mode
     running_loss = 0.0
-    running_corrects = 0
+    running_corrects = 0.0
 
     for i, (inputs, labels) in enumerate(dataloader.data['val']):
         # data['val'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
@@ -239,10 +239,10 @@ def eval_model(dataloader, training_params):
 
         # statistics - sum loss and accuracy on all batches
         running_loss += loss.item() * inputs.size(0)  # item.loss() is the average loss of the batch
-        running_corrects += torch.sum(outputs.max(1)[1] == labels.data)
+        running_corrects += torch.sum(outputs.max(1)[1] == labels.data).item()
 
     epoch_loss = running_loss / dataloader.dataset_size['val'] #TODO change to male dataset size
-    epoch_acc = running_corrects.double() / dataloader.dataset_size['val'] #TODO change to male dataset size
+    epoch_acc = running_corrects / dataloader.dataset_size['val'] #TODO change to male dataset size
     print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
     return epoch_loss, epoch_acc
 
@@ -273,8 +273,8 @@ def main():
                                    val_same_as_train=False)
 
     print("Classes: ", dataloder_male.classes)
-    print(f'Train image size: {dataloder_male.dataset_sizes["train"]}')
-    print(f'Validation image size: {dataloder_male.dataset_sizes["val"]}')
+    print(f'Train image size: {dataloder_male.dataset_size["train"]}')
+    print(f'Validation image size: {dataloder_male.dataset_size["val"]}')
 
     for lr in [0.0005, 0.0001]:
         for scheduler_step_size in [5, 7, 9]:
