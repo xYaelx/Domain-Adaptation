@@ -59,22 +59,22 @@ class TrainingParams:
         self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.num_epochs = num_epochs
 
-    def get_model(self, class_names, , architecure : NET_ARCHICECTURE):
+    def get_model(self, class_names, , architecture : NET_ARCHICECTURE):
         model_conv = torchvision.models.resnet18(pretrained=True)
         DROPOUT_PROB = 0.5
         num_ftrs = model_conv.fc.in_features
 
         # dropout architecture
-        if architecure == NET_ARCHICECTURE.NO_FC:
+        if architecture == NET_ARCHICECTURE.NO_FC:
             new_lin = nn.Linear(num_ftrs, len(class_names))
-        elif architecure == NET_ARCHICECTURE.ONE_FC:
+        elif architecture == NET_ARCHICECTURE.ONE_FC:
             new_lin = nn.Sequential(
                 nn.Linear(num_ftrs, 64),
                 nn.ReLU(),
                 nn.Dropout(DROPOUT_PROB),
                 nn.Linear(64, len(class_names))
             )
-        elif architecure == NET_ARCHICECTURE.TWO_FC:
+        elif architecture == NET_ARCHICECTURE.TWO_FC:
             new_lin = nn.Sequential(
                 nn.Linear(num_ftrs, 50),
                 nn.ReLU(),
@@ -85,7 +85,7 @@ class TrainingParams:
                 nn.Linear(20, len(class_names))
             )
         else:
-            raise Exception(f"Value {architecure} illegal")
+            raise Exception(f"Value {architecture} illegal")
 
         model_conv.fc = new_lin
 
