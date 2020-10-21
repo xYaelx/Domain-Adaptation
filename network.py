@@ -4,7 +4,7 @@ import numpy as np
 import torchvision
 import matplotlib.pyplot as plt
 from torch.utils.data import dataloader
-import DataLoaders
+from DataLoaders import DataLoaders
 import time
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
