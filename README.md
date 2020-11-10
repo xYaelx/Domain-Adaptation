@@ -1,7 +1,7 @@
 ## Domain-Adaptation Project
 An implementation of the article ["Domain-Adversarial Training of Neural Networks" (2016)](https://arxiv.org/pdf/1505.07818.pdf) by Ganin et al. This article deals with the ["Domain Adptation"](https://en.wikipedia.org/wiki/Domain_adaptation) problem which happens often in machine learning.
 
-The goal of domain adaptation is to transfer the knowledge of a model to a different but related data distribution. The model is trained on a source dataset and applied to a target dataset (usually unlabeled).
+The goal of domain adaptation is to transfer the knowledge of a well performing model from one source distribution to a different but related data distribution. The model is trained on a source dataset and applied to a target dataset (usually unlabeled).
 
 The suggested neural network in the article consists of two classifiers at the training stage: label classification and a domain classification. Each classifier has its own loss (classification loss and the domain confusion loss accordingly). 
 
