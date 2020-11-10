@@ -9,7 +9,7 @@ That way we achieve in one go two tasks for the network:
 1. Classifying the data by supervised labels and 
 2. Becoming invariant to the domain differences and “forgetting” the features which represent the difference between the domains
 
-[[IMAGE OF THE NETWORK]]
+![image of the model structure](training_model.png)
 
 
 The proposed architecture includes a deep feature extractor (green) and a deep
