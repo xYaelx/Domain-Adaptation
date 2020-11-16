@@ -1,9 +1,17 @@
 # Source: https://github.com/jvanvugt/pytorch-domain-adaptation/blob/master/utils.py
+from enum import Enum
+
 from PIL import Image
 
 import numpy as np
 import torch
 from torch.autograd import Function
+
+
+class NET_ARCHICECTURE(Enum):
+    ONE_FC = 1
+    TWO_FC = 2
+    THREE_FC = 3
 
 
 def set_requires_grad(model, requires_grad=True):
@@ -24,6 +32,13 @@ def loop_iterable(iterable):
     while True:
         yield from iterable
 
+class NET_ARCHICECTURE(Enum):
+    '''
+    ENUM object for dropout option
+    '''
+    NO_FC = 0
+    ONE_FC = 1
+    TWO_FC = 2
 
 class GrayscaleToRgb:
     """Convert a grayscale image to rgb"""
