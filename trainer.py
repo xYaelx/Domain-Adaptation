@@ -1,11 +1,14 @@
 import torch
+import time
 
 class Trainer:
-    def __init__(self, batch_size):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def __init__(self, device, domain1_dataloader, domain2_dataloader, batch_size):
+        self.device = device
+        self.domain1_dataloader = domain1_dataloader
+        self.domain2_dataloader = domain2_dataloader
         self.batch_size = batch_size
 
-    def binary_acc(y_pred, y_test):
+    def binary_acc(self,y_pred, y_test):
         y_pred_tag = torch.round(torch.sigmoid(y_pred))
 
         correct_results_sum = (y_pred_tag == y_test).sum().float()
@@ -14,7 +17,7 @@ class Trainer:
 
         return acc
 
-    def train_model(self, use_discriminator, domain1_dataloader, domain2_dataloader, training_params, writer=None):
+    def train_model(self, use_discriminator, training_params, writer=None):
         since = time.time()
 
         print("Starting epochs")
@@ -24,8 +27,8 @@ class Trainer:
             running_corrects = 0.0
             running_corrects_domain = 0.0
 
-            join_dataloader = zip(domain1_dataloader.data['train'],
-                                  domain2_dataloader.data['train'])  # TODO check how females_data is built
+            join_dataloader = zip(self.domain1_dataloader.data['train'],
+                                  self.domain2_dataloader.data['train'])  # TODO check how females_data is built
             for i, ((domain1_x, domain1_label), (domain2_x, _)) in enumerate(join_dataloader):
                 # data['train'] contains (domain1_x, domain1_y) for every batch (so i=[1...NUM OF BATCHES])
                 samples = torch.cat([domain1_x, domain2_x])
@@ -63,18 +66,18 @@ class Trainer:
                 running_corrects_domain += self.binary_acc(domain_preds, domain_y.data)
 
                 if writer is not None:  # save train label_loss for each batch
-                    x_axis = 1000 * (epoch + i / (domain1_dataloader.dataset_size[
+                    x_axis = 1000 * (epoch + i / (self.domain1_dataloader.dataset_size[
                                                       'train'] // self.batch_size))  # TODO devidie by batch size or batch size//2?
                     writer.add_scalar('batch label_loss', batch_loss / self.batch_size, x_axis)
 
             if training_params.scheduler is not None:
                 training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
 
-            train_acc = running_corrects / domain1_dataloader.dataset_size[
+            train_acc = running_corrects / self.domain1_dataloader.dataset_size[
                 'train']  # TODO change the accuracy ratio by the relevant dataset
             train_acc_domain = running_corrects_domain / i  # avg accuracy per epoch (i= num. of batches)
 
-            epoch_loss, epoch_acc = self.eval_model(domain1_dataloader, training_params)
+            epoch_loss, epoch_acc = self.eval_model(self.domain1_dataloader, training_params)
 
             if writer is not None:  # save epoch accuracy
                 x_axis = epoch
@@ -117,3 +120,8 @@ class Trainer:
         epoch_acc = running_corrects / dataloader.dataset_size['val']
         print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
         return epoch_loss, epoch_acc
+
+    def test(self, dataloader, training_params):
+        test_loss, test_acc = self.eval_model(dataloader, training_params)
+        print(f'Test accuracy: {test_acc:.4f}')
+        return test_acc
