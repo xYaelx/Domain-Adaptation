@@ -5,7 +5,8 @@ import torchvision
 import matplotlib.pyplot as plt
 from torch.utils.data import dataloader
 from DataLoaders import DataLoaders
-import time
+from T
+# import time
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
 import torch
@@ -13,6 +14,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
+
+from trainer import Trainer
 from utils import GradientReversal
 from enum import Enum
 
@@ -39,73 +42,81 @@ torch.cuda.is_available()
 #     LABS_DIR = Path('C:/Labs/')
 
 
-class NET_ARCHICECTURE(Enum):
-    '''
-    ENUM object for dropout option
-    '''
-    NO_FC = 0
-    ONE_FC = 1
-    TWO_FC = 2
 
 class TrainingParams:
     '''
     An object that contains all parameters the model needs for training: the architecture, loss criterions, num of epochs
     '''
-    def __init__(self, lr, weight_decay, step_size, gamma, num_epochs,num_classes):
-        self.model = self.get_model(num_classes)
+    def __init__(self, model, lr_initial, step_size, gamma, weight_decay, num_epochs):
+        self.model = model
+        self.lr = lr_initial
+        self.step_size = step_size
+        self.gamma = gamma
+        self.weight_decay = weight_decay
         self.label_criterion = nn.CrossEntropyLoss()  # softmax+log
-        self.domain_criterion = nn.binary_cross_entropy_with_logits # TODO check this loss criterion
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
-        self.scheduler= lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.domain_criterion = nn.functional.binary_cross_entropy_with_logits
         self.num_epochs = num_epochs
 
-    def get_model(self, class_names, , architecture : NET_ARCHICECTURE):
-        model_conv = torchvision.models.resnet18(pretrained=True)
-        DROPOUT_PROB = 0.5
-        num_ftrs = model_conv.fc.in_features
+    def __str__(self):
+        return f'_lr_{self.lr}_st_{self.step_size}_gma_{self.gamma}_wDK_{self.weight_decay}'
 
-        # dropout architecture
-        if architecture == NET_ARCHICECTURE.NO_FC:
-            new_lin = nn.Linear(num_ftrs, len(class_names))
-        elif architecture == NET_ARCHICECTURE.ONE_FC:
-            new_lin = nn.Sequential(
-                nn.Linear(num_ftrs, 64),
-                nn.ReLU(),
-                nn.Dropout(DROPOUT_PROB),
-                nn.Linear(64, len(class_names))
-            )
-        elif architecture == NET_ARCHICECTURE.TWO_FC:
-            new_lin = nn.Sequential(
-                nn.Linear(num_ftrs, 50),
-                nn.ReLU(),
-                nn.Dropout(DROPOUT_PROB),
-                nn.Linear(50, 20),
-                nn.ReLU(),
-                nn.Dropout(DROPOUT_PROB),
-                nn.Linear(20, len(class_names))
-            )
-        else:
-            raise Exception(f"Value {architecture} illegal")
+    @property
+    def model(self):
+        return self.__model
 
-        model_conv.fc = new_lin
+    @model.setter
+    def model(self, model_conv):
+        self.__model = model_conv
+        self.optimizer = optim.Adam(self.model_conv.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=self.step_size, gamma=self.gamma)
 
-        model_conv.activation = {}
+def get_model(self, class_names, , architecture : NET_ARCHICECTURE):
+    model_conv = torchvision.models.resnet18(pretrained=True)
+    DROPOUT_PROB = 0.5
+    num_ftrs = model_conv.fc.in_features
 
-        def get_activation(name):
-            def hook(model, input, output):
-                model.activation[name] = output  # .detach()
-
-            return hook
-
-        model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
-        model_conv.discriminator = nn.Sequential(
-            GradientReversal(),
+    # dropout architecture
+    if architecture == NET_ARCHICECTURE.NO_FC:
+        new_lin = nn.Linear(num_ftrs, len(class_names))
+    elif architecture == NET_ARCHICECTURE.ONE_FC:
+        new_lin = nn.Sequential(
+            nn.Linear(num_ftrs, 64),
+            nn.ReLU(),
+            nn.Dropout(DROPOUT_PROB),
+            nn.Linear(64, len(class_names))
+        )
+    elif architecture == NET_ARCHICECTURE.TWO_FC:
+        new_lin = nn.Sequential(
             nn.Linear(num_ftrs, 50),
             nn.ReLU(),
+            nn.Dropout(DROPOUT_PROB),
             nn.Linear(50, 20),
             nn.ReLU(),
-            nn.Linear(20, 1)
-        ).to(device)
+            nn.Dropout(DROPOUT_PROB),
+            nn.Linear(20, len(class_names))
+        )
+    else:
+        raise Exception(f"Value {architecture} illegal")
+
+    model_conv.fc = new_lin
+
+    model_conv.activation = {}
+
+    def get_activation(name):
+        def hook(model, input, output):
+            model.activation[name] = output  # .detach()
+
+        return hook
+
+    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
+    model_conv.discriminator = nn.Sequential(
+        GradientReversal(),
+        nn.Linear(num_ftrs, 50),
+        nn.ReLU(),
+        nn.Linear(50, 20),
+        nn.ReLU(),
+        nn.Linear(20, 1)
+    ).to(device)
 
         model_conv = model_conv.to(device)
         return model_conv
@@ -141,127 +152,132 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
 
-def train_model(males_dataloader, females_dataloader, training_params, writer=None):
-    '''
-    The whole training process
-    :param males_dataloader:
-    :param females_dataloader:
-    :param training_params:
-    :param writer:
-    :return: the trained model
-    '''
-    since = time.time()
-
-    print("Starting epochs")
-    for epoch in range(1, training_params.num_epochs + 1):
-        print(f'Epoch: {epoch} of {training_params.num_epochs}')
-        training_params.model.train()  # Set model to training mode
-        running_corrects = 0.0
-        join_dataloader = zip(males_dataloader.data['train'], females_dataloader.data['train'])  # TODO check how females_data is built
-        for i, ((males_x, males_label), (females_x, _)) in enumerate(join_dataloader):
-            # data['train'] contains (males_x, males_y) for every batch (so i=[1...NUM OF BATCHES]
-            samples = torch.cat([males_x, females_x])
-            samples = samples.to(device)
-            label_y = males_label.to(device)
-            domain_y = torch.cat([torch.ones(males_x.shape[0]), torch.zeros(females_x.shape[0])])
-            domain_y = domain_y.to(device)
-
-            # zero the parameter gradients
-            training_params.optimizer.zero_grad()
-
-            # forward
-            with torch.set_grad_enabled(True):
-                label_preds = training_params.model(samples[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
-                label_loss = training_params.label_criterion(label_preds, label_y)
-
-                # TODO check the discriminator
-                extracted_features = training_params.model.avgpool.activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
-                extracted_features = extracted_features.view(extracted_features.shape[0], -1)
-                domain_preds = training_params.model.discriminator(extracted_features).squeeze()
-                domain_loss = training_params.domain_criterion(domain_preds, domain_y)
-
-                loss = label_loss+domain_loss
-                # backward + optimize only if in training phase
-                loss.backward()
-                training_params.optimizer.step()
-
-            batch_loss = loss.item() * samples.size(0)
-            running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data).item()
-
-            if writer is not None:  # save train label_loss for each batch
-                x_axis = 1000 * (epoch + i / (males_dataloader.dataset_size['train'] // BATCH_SIZE))#TODO devidie by batch size or batch size//2?
-                writer.add_scalar('batch label_loss', batch_loss / BATCH_SIZE, x_axis)
-
-        if training_params.scheduler is not None:
-            training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
-
-        train_acc = running_corrects / males_dataloader.dataset_size['train'] # TODO change the accuracy ratio by the relevant dataset
-
-        epoch_loss, epoch_acc = eval_model(males_dataloader, training_params)
-
-        if writer is not None:  # save epoch accuracy
-            x_axis = epoch
-            writer.add_scalar('accuracy-train', train_acc, x_axis)
-            writer.add_scalar('accuracy-val', epoch_acc, x_axis)
-
-    time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
-        time_elapsed // 60, time_elapsed % 60))
-    # return the last trained model
-    return training_params.model
-
-def eval_model(dataloader, training_params):
-    '''
-    class used for test and Validation
-    :param dataloader:
-    :param training_params:
-    :return: loss and accuracy
-    '''
-    training_params.model.eval()  # Set model to evaluate mode
-    running_loss = 0.0
-    running_corrects = 0.0
-
-    for i, (inputs, labels) in enumerate(dataloader.data['val']):
-        # data['val'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
-
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-
-        # zero the parameter gradients
-        training_params.optimizer.zero_grad()
-
-        # forward
-        # track history if only in train
-        with torch.set_grad_enabled(False):
-            outputs = training_params.model(inputs)
-            _, preds = torch.max(outputs, 1)
-            loss = training_params.label_criterion(outputs, labels)
-
-        # statistics - sum loss and accuracy on all batches
-        running_loss += loss.item() * inputs.size(0)  # item.loss() is the average loss of the batch
-        running_corrects += torch.sum(outputs.max(1)[1] == labels.data).item()
-
-    epoch_loss = running_loss / dataloader.dataset_size['val'] #TODO change to male dataset size
-    epoch_acc = running_corrects / dataloader.dataset_size['val'] #TODO change to male dataset size
-    print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
-    return epoch_loss, epoch_acc
+# def train_model(males_dataloader, females_dataloader, training_params, writer=None):
+#     '''
+#     The whole training process
+#     :param males_dataloader:
+#     :param females_dataloader:
+#     :param training_params:
+#     :param writer:
+#     :return: the trained model
+#     '''
+#     since = time.time()
+#
+#     print("Starting epochs")
+#     for epoch in range(1, training_params.num_epochs + 1):
+#         print(f'Epoch: {epoch} of {training_params.num_epochs}')
+#         training_params.model.train()  # Set model to training mode
+#         running_corrects = 0.0
+#         join_dataloader = zip(males_dataloader.data['train'], females_dataloader.data['train'])  # TODO check how females_data is built
+#         for i, ((males_x, males_label), (females_x, _)) in enumerate(join_dataloader):
+#             # data['train'] contains (males_x, males_y) for every batch (so i=[1...NUM OF BATCHES]
+#             samples = torch.cat([males_x, females_x])
+#             samples = samples.to(device)
+#             label_y = males_label.to(device)
+#             domain_y = torch.cat([torch.ones(males_x.shape[0]), torch.zeros(females_x.shape[0])])
+#             domain_y = domain_y.to(device)
+#
+#             # zero the parameter gradients
+#             training_params.optimizer.zero_grad()
+#
+#             # forward
+#             with torch.set_grad_enabled(True):
+#                 label_preds = training_params.model(samples[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
+#                 label_loss = training_params.label_criterion(label_preds, label_y)
+#
+#                 # TODO check the discriminator
+#                 extracted_features = training_params.model.avgpool.activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
+#                 extracted_features = extracted_features.view(extracted_features.shape[0], -1)
+#                 domain_preds = training_params.model.discriminator(extracted_features).squeeze()
+#                 domain_loss = training_params.domain_criterion(domain_preds, domain_y)
+#
+#                 loss = label_loss+domain_loss
+#                 # backward + optimize only if in training phase
+#                 loss.backward()
+#                 training_params.optimizer.step()
+#
+#             batch_loss = loss.item() * samples.size(0)
+#             running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data).item()
+#
+#             if writer is not None:  # save train label_loss for each batch
+#                 x_axis = 1000 * (epoch + i / (males_dataloader.dataset_size['train'] // BATCH_SIZE))#TODO devidie by batch size or batch size//2?
+#                 writer.add_scalar('batch label_loss', batch_loss / BATCH_SIZE, x_axis)
+#
+#         if training_params.scheduler is not None:
+#             training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
+#
+#         train_acc = running_corrects / males_dataloader.dataset_size['train'] # TODO change the accuracy ratio by the relevant dataset
+#
+#         epoch_loss, epoch_acc = eval_model(males_dataloader, training_params)
+#
+#         if writer is not None:  # save epoch accuracy
+#             x_axis = epoch
+#             writer.add_scalar('accuracy-train', train_acc, x_axis)
+#             writer.add_scalar('accuracy-val', epoch_acc, x_axis)
+#
+#     time_elapsed = time.time() - since
+#     print('Training complete in {:.0f}m {:.0f}s'.format(
+#         time_elapsed // 60, time_elapsed % 60))
+#     # return the last trained model
+#     return training_params.model
+#
+# def eval_model(dataloader, training_params):
+#     '''
+#     class used for test and Validation
+#     :param dataloader:
+#     :param training_params:
+#     :return: loss and accuracy
+#     '''
+#     training_params.model.eval()  # Set model to evaluate mode
+#     running_loss = 0.0
+#     running_corrects = 0.0
+#
+#     for i, (inputs, labels) in enumerate(dataloader.data['val']):
+#         # data['val'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
+#
+#         inputs = inputs.to(device)
+#         labels = labels.to(device)
+#
+#         # zero the parameter gradients
+#         training_params.optimizer.zero_grad()
+#
+#         # forward
+#         # track history if only in train
+#         with torch.set_grad_enabled(False):
+#             outputs = training_params.model(inputs)
+#             _, preds = torch.max(outputs, 1)
+#             loss = training_params.label_criterion(outputs, labels)
+#
+#         # statistics - sum loss and accuracy on all batches
+#         running_loss += loss.item() * inputs.size(0)  # item.loss() is the average loss of the batch
+#         running_corrects += torch.sum(outputs.max(1)[1] == labels.data).item()
+#
+#     epoch_loss = running_loss / dataloader.dataset_size['val'] #TODO change to male dataset size
+#     epoch_acc = running_corrects / dataloader.dataset_size['val'] #TODO change to male dataset size
+#     print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
+#     return epoch_loss, epoch_acc
 
 
 
 
 
 # Tensorboard Stuff
-def run_experiment(data_m, data_f, lr_initial, gamma, step_size, weight_decay, num_of_epochs):
+def run_experiment(use_discriminator, domain1_dataloader,domain2_dataloader, test_dataloader, training_params, architecure : NET_ARCHICECTURE):
     """
     Gets all hyper parameters and creates the relevant optimizer and scheduler according to those params
 
     """
-    training_params = TrainingParams(lr_initial, weight_decay, step_size, gamma, num_of_epochs)
+    training_params.model = get_model(domain1_dataloader.classes, architecure)
+
     experiment_name = datetime.now().strftime(
         "%Y%m%d-%H%M%S") + f'_lr_{lr_initial}_st_{step_size}_gma_{gamma}_wDK_{weight_decay}'
     print("Experiment name: ", experiment_name)
 
     writer = SummaryWriter('runs/' + experiment_name)
+    trainer = Trainer(domain1_dataloader, domain2_dataloader, BATCH_SIZE)
+    # first train
+    trainer.train_model()
+    #then test :)
     trained_model = train_model(data_m, data_f, training_params, writer=writer)
     return trained_model
 
@@ -278,8 +294,11 @@ def main():
 
     for lr in [0.0005, 0.0001]:
         for scheduler_step_size in [5, 7, 9]:
-            for scheduler_gamma in [0.1, 0.3, 0.5]:
+            for gamma in [0.1, 0.3, 0.5]:
                 for weight_decay in [0.01, 0.1]:
+                    # params order: model, lr_initial, step_size, gamma, weight_decay, num_epochs)
+                    training_params = TrainingParams(lr, scheduler_step_size, gamma, weight_decay, NUM_EPOCHS)
+
                     model_conv = run_experiment(dataloder_male, dataloder_female, lr, scheduler_gamma,
                                                 scheduler_step_size, weight_decay, NUM_EPOCHS)
 
