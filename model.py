@@ -1,6 +1,9 @@
 from utils import NET_ARCHICECTURE
-import torch
+import torch.nn as nn
 from torch.autograd import Function
+from torchvision import models
+
+DROPOUT_PROB = 0.5
 
 
 def get_activation(name):
@@ -16,20 +19,14 @@ def get_model(device, class_names, architecure: NET_ARCHICECTURE):
     # model_conv = models.resnet50(pretrained=True)
     # model_conv = models.resnet101(pretrained=True)
 
-    DROPOUT_PROB = 0.5
-
     num_ftrs = model_conv.fc.in_features  # The size of feature extractor output
-
+    num_classes = len(class_names)
     linear_model_selector = {
         NET_ARCHICECTURE.ONE_FC: lin_one_fc,
         NET_ARCHICECTURE.TWO_FC: lin_two_fc,
         NET_ARCHICECTURE.THREE_FC: lin_three_fc,
     }
-
-    try:
-        model_conv.fc = linear_model_selector[architecure]()
-    except:
-        raise Exception(f"Value {architecure} illegal")
+    model_conv.fc = linear_model_selector[architecure](num_ftrs, num_classes)
 
     model_conv.avgpool.activation = {}
 
@@ -48,20 +45,20 @@ def get_model(device, class_names, architecure: NET_ARCHICECTURE):
     return model_conv
 
 
-def lin_one_fc():
-    return nn.Linear(num_ftrs, len(class_names))
+def lin_one_fc(num_ftrs, num_classes):
+    return nn.Linear(num_ftrs, num_classes)
 
 
-def lin_two_fc():
+def lin_two_fc(num_ftrs, num_classes):
     return nn.Sequential(
         nn.Linear(num_ftrs, 64),
         nn.ReLU(),
         nn.Dropout(DROPOUT_PROB),
-        nn.Linear(64, len(class_names))
+        nn.Linear(64, num_classes)
     )
 
 
-def lin_three_fc():
+def lin_three_fc(num_ftrs, num_classes):
     return nn.Sequential(
         nn.Linear(num_ftrs, 50),
         nn.ReLU(),
@@ -69,7 +66,7 @@ def lin_three_fc():
         nn.Linear(50, 20),
         nn.ReLU(),
         nn.Dropout(DROPOUT_PROB),
-        nn.Linear(20, len(class_names))
+        nn.Linear(20, num_classes)
     )
 
 
@@ -89,6 +86,7 @@ def freeze_layers_grad(model, total_freeze_layers=7):
                 param.requires_grad = False
 
 
+# Source: https://github.com/jvanvugt/pytorch-domain-adaptation/blob/master/utils.py
 class GradientReversalFunction(Function):
     """
     Gradient Reversal Layer from:
@@ -110,11 +108,10 @@ class GradientReversalFunction(Function):
         return dx, None
 
 
-class GradientReversal(torch.nn.Module):
+class GradientReversal(nn.Module):
     def __init__(self, lambda_=1):
         super(GradientReversal, self).__init__()
         self.lambda_ = lambda_
 
     def forward(self, x):
         return GradientReversalFunction.apply(x, self.lambda_)
-
