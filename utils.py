@@ -7,12 +7,17 @@ import numpy as np
 import torch
 from torch.autograd import Function
 
+def loop_iterable(iterable):
+    while True:
+        yield from iterable
 
 class NET_ARCHICECTURE(Enum):
+    '''
+    ENUM object for dropout option
+    '''
     ONE_FC = 1
     TWO_FC = 2
     THREE_FC = 3
-
 
 def set_requires_grad(model, requires_grad=True):
     for param in model.parameters():
@@ -27,18 +32,6 @@ def freeze_layers_grad(model, total_freeze_layers=7):
         if layer < total_freeze_layers:
             for param in child.parameters():
                 param.requires_grad = False
-
-def loop_iterable(iterable):
-    while True:
-        yield from iterable
-
-class NET_ARCHICECTURE(Enum):
-    '''
-    ENUM object for dropout option
-    '''
-    NO_FC = 0
-    ONE_FC = 1
-    TWO_FC = 2
 
 class GrayscaleToRgb:
     """Convert a grayscale image to rgb"""
