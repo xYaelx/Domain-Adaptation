@@ -27,7 +27,7 @@ We implemented this architecture and tested it as a variation of the classic tas
 
 ### Project files
 1. dataLoaders.py - DataLoader object
-2. model.py - all function that create the model(network) architecture
+2. model.py - all functions that create the model(network) architecture
 3. network.py - the main file
 4. trainer.py - Trainer object. Contains the training, evaluation and test functions
 5. utils.py
