@@ -6,45 +6,6 @@ from torchvision import models
 DROPOUT_PROB = 0.5
 
 
-def get_activation(name):
-    def hook(model, input, output):
-        model.activation[name] = output  # .detach()
-
-    return hook
-
-
-def get_model(device, class_names, architecure: NET_ARCHICECTURE):
-    assert architecure in NET_ARCHICECTURE
-    model_conv = models.resnet18(pretrained=True)
-    # model_conv = models.resnet50(pretrained=True)
-    # model_conv = models.resnet101(pretrained=True)
-
-    num_ftrs = model_conv.fc.in_features  # The size of feature extractor output
-    num_classes = len(class_names)
-    linear_model_selector = {
-        NET_ARCHICECTURE.ONE_FC: lin_one_fc,
-        NET_ARCHICECTURE.TWO_FC: lin_two_fc,
-        NET_ARCHICECTURE.THREE_FC: lin_three_fc,
-    }
-    model_conv.fc = linear_model_selector[architecure](num_ftrs, num_classes)
-
-    model_conv.avgpool.activation = {}
-
-    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
-
-    model_conv.discriminator = nn.Sequential(
-        GradientReversal(),
-        nn.Linear(num_ftrs, 50),
-        nn.ReLU(),
-        nn.Linear(50, 20),
-        nn.ReLU(),
-        nn.Linear(20, 1)
-    ).to(device)
-
-    model_conv = model_conv.to(device)
-    return model_conv
-
-
 def lin_one_fc(num_ftrs, num_classes):
     return nn.Linear(num_ftrs, num_classes)
 
@@ -68,6 +29,54 @@ def lin_three_fc(num_ftrs, num_classes):
         nn.Dropout(DROPOUT_PROB),
         nn.Linear(20, num_classes)
     )
+
+
+linear_model_selector = {
+    NET_ARCHICECTURE.ONE_FC: lin_one_fc,
+    NET_ARCHICECTURE.TWO_FC: lin_two_fc,
+    NET_ARCHICECTURE.THREE_FC: lin_three_fc,
+}
+
+
+def get_activation(name):
+    def hook(model, input, output):
+        model.activation[name] = output  # .detach()
+
+    return hook
+
+
+linear_model_selector = {
+    NET_ARCHICECTURE.ONE_FC: lin_one_fc,
+    NET_ARCHICECTURE.TWO_FC: lin_two_fc,
+    NET_ARCHICECTURE.THREE_FC: lin_three_fc,
+}
+
+
+def get_model(device, class_names, architecture: NET_ARCHICECTURE):
+    assert architecture in linear_model_selector.keys()
+    model_conv = models.resnet18(pretrained=True)
+    # model_conv = models.resnet50(pretrained=True)
+    # model_conv = models.resnet101(pretrained=True)
+
+    num_ftrs = model_conv.fc.in_features  # The size of feature extractor output
+    num_classes = len(class_names)
+    model_conv.fc = linear_model_selector[architecture](num_ftrs, num_classes)
+
+    model_conv.avgpool.activation = {}
+
+    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
+
+    model_conv.discriminator = nn.Sequential(
+        GradientReversal(),
+        nn.Linear(num_ftrs, 50),
+        nn.ReLU(),
+        nn.Linear(50, 20),
+        nn.ReLU(),
+        nn.Linear(20, 1)
+    ).to(device)
+
+    model_conv = model_conv.to(device)
+    return model_conv
 
 
 def set_requires_grad(model, requires_grad=True):
