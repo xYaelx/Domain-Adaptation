@@ -18,6 +18,7 @@ class Trainer:
         return acc
 
     def train_model(self, use_discriminator, training_params, writer=None):
+        #     The whole training process
         since = time.time()
 
         print("Starting epochs")
@@ -92,6 +93,7 @@ class Trainer:
         return training_params
 
     def eval_model(self, dataloader, training_params):
+        #     class used for test and Validation
         training_params.model.eval()  # Set model to evaluate mode
         running_loss = 0.0
         running_corrects = 0.0
