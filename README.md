@@ -26,4 +26,8 @@ domains are made similar (as indistinguishable as possible for the domain classi
 We implemented this architecture and tested it as a variation of the classic task of recognition of seven emotional states (neutral, joy, sadness, surprise, anger, fear, disgust) based on facial expressions. The two domains are “Women” and “Men” and the domain-adaptation challenge is training the network on one sex and applying it on the other. 
 
 ### Project files
-1. trainer.py - 
+1. dataLoaders.py - DataLoader object
+2. model.py - all function that create the model(network) architecture
+3. network.py - the main file
+4. trainer.py - Trainer object. Contains the training, evaluation and test functions
+5. utils.py
