@@ -1,11 +1,8 @@
 from datetime import datetime
 
-import numpy as np
 import torchvision
 import matplotlib.pyplot as plt
-from torch.utils.data import dataloader
 from DataLoaders import DataLoaders
-from T
 # import time
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
@@ -14,13 +11,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
-
 from trainer import Trainer
-from utils import GradientReversal
-from enum import Enum
+from model import get_model
 
-# import itertools
-# import pixiedust
+from utils import NET_ARCHICECTURE
 
 DATA_DIR = 'Data'
 DATA_DIR_M = 'Data/Male'
@@ -33,6 +27,7 @@ print(torch.__version__)
 plt.ion()  # interactive mode
 torch.cuda.is_available()
 
+
 # try:
 #     from google.colab import drive
 #
@@ -42,11 +37,11 @@ torch.cuda.is_available()
 #     LABS_DIR = Path('C:/Labs/')
 
 
-
 class TrainingParams:
     '''
     An object that contains all parameters the model needs for training: the architecture, loss criterions, num of epochs
     '''
+
     def __init__(self, model, lr_initial, step_size, gamma, weight_decay, num_epochs):
         self.model = model
         self.lr = lr_initial
@@ -70,65 +65,15 @@ class TrainingParams:
         self.optimizer = optim.Adam(self.model_conv.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=self.step_size, gamma=self.gamma)
 
-def get_model(self, class_names, , architecture : NET_ARCHICECTURE):
-    model_conv = torchvision.models.resnet18(pretrained=True)
-    DROPOUT_PROB = 0.5
-    num_ftrs = model_conv.fc.in_features
 
-    # dropout architecture
-    if architecture == NET_ARCHICECTURE.NO_FC:
-        new_lin = nn.Linear(num_ftrs, len(class_names))
-    elif architecture == NET_ARCHICECTURE.ONE_FC:
-        new_lin = nn.Sequential(
-            nn.Linear(num_ftrs, 64),
-            nn.ReLU(),
-            nn.Dropout(DROPOUT_PROB),
-            nn.Linear(64, len(class_names))
-        )
-    elif architecture == NET_ARCHICECTURE.TWO_FC:
-        new_lin = nn.Sequential(
-            nn.Linear(num_ftrs, 50),
-            nn.ReLU(),
-            nn.Dropout(DROPOUT_PROB),
-            nn.Linear(50, 20),
-            nn.ReLU(),
-            nn.Dropout(DROPOUT_PROB),
-            nn.Linear(20, len(class_names))
-        )
-    else:
-        raise Exception(f"Value {architecture} illegal")
-
-    model_conv.fc = new_lin
-
-    model_conv.activation = {}
-
-    def get_activation(name):
-        def hook(model, input, output):
-            model.activation[name] = output  # .detach()
-
-        return hook
-
-    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
-    model_conv.discriminator = nn.Sequential(
-        GradientReversal(),
-        nn.Linear(num_ftrs, 50),
-        nn.ReLU(),
-        nn.Linear(50, 20),
-        nn.ReLU(),
-        nn.Linear(20, 1)
-    ).to(device)
-
-        model_conv = model_conv.to(device)
-        return model_conv
-
-
-#### sanity check for the images
+""" sanity check for the images"""
 # classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
 # for emotion in classes:
 #     print("Class =",emotion)
 #     !ls $DATA_DIR\VAL\$emotion | wc -l
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 # def imshow(inp, title=None):
 #     """Imshow for Tensor."""
@@ -151,135 +96,30 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # print(f"classes={classes}")
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
-
-# def train_model(males_dataloader, females_dataloader, training_params, writer=None):
-#     '''
-#     The whole training process
-#     :param males_dataloader:
-#     :param females_dataloader:
-#     :param training_params:
-#     :param writer:
-#     :return: the trained model
-#     '''
-#     since = time.time()
-#
-#     print("Starting epochs")
-#     for epoch in range(1, training_params.num_epochs + 1):
-#         print(f'Epoch: {epoch} of {training_params.num_epochs}')
-#         training_params.model.train()  # Set model to training mode
-#         running_corrects = 0.0
-#         join_dataloader = zip(males_dataloader.data['train'], females_dataloader.data['train'])  # TODO check how females_data is built
-#         for i, ((males_x, males_label), (females_x, _)) in enumerate(join_dataloader):
-#             # data['train'] contains (males_x, males_y) for every batch (so i=[1...NUM OF BATCHES]
-#             samples = torch.cat([males_x, females_x])
-#             samples = samples.to(device)
-#             label_y = males_label.to(device)
-#             domain_y = torch.cat([torch.ones(males_x.shape[0]), torch.zeros(females_x.shape[0])])
-#             domain_y = domain_y.to(device)
-#
-#             # zero the parameter gradients
-#             training_params.optimizer.zero_grad()
-#
-#             # forward
-#             with torch.set_grad_enabled(True):
-#                 label_preds = training_params.model(samples[:males_x.shape[0]])  # TODO check if x[:males_x.shape[0]] = males_x
-#                 label_loss = training_params.label_criterion(label_preds, label_y)
-#
-#                 # TODO check the discriminator
-#                 extracted_features = training_params.model.avgpool.activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
-#                 extracted_features = extracted_features.view(extracted_features.shape[0], -1)
-#                 domain_preds = training_params.model.discriminator(extracted_features).squeeze()
-#                 domain_loss = training_params.domain_criterion(domain_preds, domain_y)
-#
-#                 loss = label_loss+domain_loss
-#                 # backward + optimize only if in training phase
-#                 loss.backward()
-#                 training_params.optimizer.step()
-#
-#             batch_loss = loss.item() * samples.size(0)
-#             running_corrects += torch.sum(label_preds.max(1)[1] == label_y.data).item()
-#
-#             if writer is not None:  # save train label_loss for each batch
-#                 x_axis = 1000 * (epoch + i / (males_dataloader.dataset_size['train'] // BATCH_SIZE))#TODO devidie by batch size or batch size//2?
-#                 writer.add_scalar('batch label_loss', batch_loss / BATCH_SIZE, x_axis)
-#
-#         if training_params.scheduler is not None:
-#             training_params.scheduler.step()  # scheduler step is performed per-epoch in the training phase
-#
-#         train_acc = running_corrects / males_dataloader.dataset_size['train'] # TODO change the accuracy ratio by the relevant dataset
-#
-#         epoch_loss, epoch_acc = eval_model(males_dataloader, training_params)
-#
-#         if writer is not None:  # save epoch accuracy
-#             x_axis = epoch
-#             writer.add_scalar('accuracy-train', train_acc, x_axis)
-#             writer.add_scalar('accuracy-val', epoch_acc, x_axis)
-#
-#     time_elapsed = time.time() - since
-#     print('Training complete in {:.0f}m {:.0f}s'.format(
-#         time_elapsed // 60, time_elapsed % 60))
-#     # return the last trained model
-#     return training_params.model
-#
-# def eval_model(dataloader, training_params):
-#     '''
-#     class used for test and Validation
-#     :param dataloader:
-#     :param training_params:
-#     :return: loss and accuracy
-#     '''
-#     training_params.model.eval()  # Set model to evaluate mode
-#     running_loss = 0.0
-#     running_corrects = 0.0
-#
-#     for i, (inputs, labels) in enumerate(dataloader.data['val']):
-#         # data['val'] contains (input,labels) for every batch (so i=[1...NUM OF BATCHES]
-#
-#         inputs = inputs.to(device)
-#         labels = labels.to(device)
-#
-#         # zero the parameter gradients
-#         training_params.optimizer.zero_grad()
-#
-#         # forward
-#         # track history if only in train
-#         with torch.set_grad_enabled(False):
-#             outputs = training_params.model(inputs)
-#             _, preds = torch.max(outputs, 1)
-#             loss = training_params.label_criterion(outputs, labels)
-#
-#         # statistics - sum loss and accuracy on all batches
-#         running_loss += loss.item() * inputs.size(0)  # item.loss() is the average loss of the batch
-#         running_corrects += torch.sum(outputs.max(1)[1] == labels.data).item()
-#
-#     epoch_loss = running_loss / dataloader.dataset_size['val'] #TODO change to male dataset size
-#     epoch_acc = running_corrects / dataloader.dataset_size['val'] #TODO change to male dataset size
-#     print(f'Test Loss: {epoch_loss:.4f} TestAcc: {epoch_acc:.4f}')
-#     return epoch_loss, epoch_acc
-
-
-
-
-
-# Tensorboard Stuff
-def run_experiment(use_discriminator, domain1_dataloader,domain2_dataloader, test_dataloader, training_params, architecure : NET_ARCHICECTURE):
+def run_experiment(use_discriminator, domain1_dataloader, domain2_dataloader, test_dataloader, training_params,
+                   architecure: NET_ARCHICECTURE):
     """
     Gets all hyper parameters and creates the relevant optimizer and scheduler according to those params
 
     """
-    training_params.model = get_model(domain1_dataloader.classes, architecure)
+    training_params.model = get_model(device, domain1_dataloader.classes, architecure)
 
-    experiment_name = datetime.now().strftime(
-        "%Y%m%d-%H%M%S") + f'_lr_{lr_initial}_st_{step_size}_gma_{gamma}_wDK_{weight_decay}'
-    print("Experiment name: ", experiment_name)
+    descriminator_description = "D" if use_discriminator else "ND"
+    experiment_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + descriminator_description + str(training_params)
+    print("Starting, experiment name: ", experiment_name)
 
-    writer = SummaryWriter('runs/' + experiment_name)
-    trainer = Trainer(domain1_dataloader, domain2_dataloader, BATCH_SIZE)
+    writer = SummaryWriter('runs/' + experiment_name)  # Tensorboard Stuff
+    trainer = Trainer(device, domain1_dataloader, domain2_dataloader, BATCH_SIZE)
+
     # first train
-    trainer.train_model()
-    #then test :)
-    trained_model = train_model(data_m, data_f, training_params, writer=writer)
-    return trained_model
+    trained_params_model = trainer.train_model(use_discriminator, training_params, writer=writer)
+    print(f"Experiment {experiment_name} - testing on the women domain")
+
+    # then test :)
+    test_acc = trainer.test(test_dataloader, trained_params_model)
+    print("Finished -----------------\r\n\r\n")
+
+    return trained_params_model, test_acc
 
 
 def main():
