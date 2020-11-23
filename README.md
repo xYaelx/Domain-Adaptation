@@ -1,9 +1,10 @@
 ## Domain-Adaptation - Learning from Male Faces to Female Faces
 We built this neural network to recognize emotion from a facial expression. There are seven emotional states: neutral, joy, sadness, surprise, anger, fear, disgust.
 
-While the men faces are labelled, women faces aren't:
+While the men faces are labelled
 ![image of the men samples](men_faces_emotions.png)
 
+women faces aren't:
 ![image of the women samples](women_faces_examples.png)
 
 To classify the women facial expressions and solve the lack of labelled data, we used an advanced technique: domain-adaptation (by Ganin et al. see description below)
