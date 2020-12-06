@@ -2,7 +2,7 @@ from datetime import datetime
 
 import torchvision
 import matplotlib.pyplot as plt
-from DataLoaders import DataLoaders
+from dataLoaders import DataLoaders
 # import time
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
@@ -139,7 +139,7 @@ def main():
                     # params order: model, lr_initial, step_size, gamma, weight_decay, num_epochs)
                     training_params = TrainingParams(lr, scheduler_step_size, gamma, weight_decay, NUM_EPOCHS)
 
-                    model_conv = run_experiment(dataloder_male, dataloder_female, lr, scheduler_gamma,
+                    model_conv = run_experiment(dataloder_male, dataloder_female, lr, gamma,
                                                 scheduler_step_size, weight_decay, NUM_EPOCHS)
 
         # torch.save({'model_state_dict': model_conv.state_dict(),
