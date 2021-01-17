@@ -2,6 +2,7 @@ from utils import NET_ARCHICECTURE
 import torch.nn as nn
 from torch.autograd import Function
 from torchvision import models
+import torch.nn as nn
 
 DROPOUT_PROB = 0.5
 
@@ -36,6 +37,47 @@ linear_model_selector = {
     NET_ARCHICECTURE.TWO_FC: lin_two_fc,
     NET_ARCHICECTURE.THREE_FC: lin_three_fc,
 }
+
+
+class Discriminator(nn.Module):
+    def __init__(self, num_ftrs):
+        self._module = nn.Sequential(
+            GradientReversal(),
+            nn.Linear(num_ftrs, 50),
+            nn.ReLU(),
+            nn.Linear(50, 20),
+            nn.ReLU(),
+            nn.Linear(20, 1)
+        )
+
+    def forward(self, x):
+        return self._module(x)
+
+class AdversarialModel(nn.Module):
+    _feature_extractor: nn.Module
+    _classifier: nn.Module
+    _discriminator: nn.Module
+
+    def __init__(self,full_classifier: nn.Module, use_discriminator: bool, num_classes: int):
+        self.use_discriminator = use_discriminator
+        num_ftrs = full_classifier.fc.in_features
+        #         self._feature_extracgtor = nn.Sequential(full_classfier.layers[:-1])
+        self._feature_extractor = full_classifier
+        self._feature_extractor.fc = nn.Sequential()  # De-facto 'identity' (empty layer, copies input to output).
+        self._classifier = nn.Linear(num_ftrs, num_classes)
+        self._discriminator = Discriminator(num_ftrs)
+
+    # define discriminator class
+
+    def forward(self, x):
+        x = self._feature_extractor(x)
+        y = self._classifier(x)
+        if self.use_discriminator:
+            z = self._discriminator(x)
+        else:
+            z = None
+
+        return y, z
 
 
 def get_activation(name):
