@@ -7,9 +7,8 @@ from dataLoaders import DataLoaders
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
 import torch
-
 from torch.utils.tensorboard import SummaryWriter
-from trainer import Trainer
+from trainer import Trainer, TrainingParams
 from model import get_model
 
 from utils import NET_ARCHICECTURE
