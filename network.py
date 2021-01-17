@@ -7,9 +7,7 @@ from dataLoaders import DataLoaders
 from pathlib import Path
 # from tqdm.notebook import trange, tqdm
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
+
 from torch.utils.tensorboard import SummaryWriter
 from trainer import Trainer
 from model import get_model
