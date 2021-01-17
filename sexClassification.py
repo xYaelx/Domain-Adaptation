@@ -1,5 +1,6 @@
 """ The following network will be trained to classify
-between facial images of men and women. It will help to increase the tagged faces by sex"""
+between facial images of men and women. It will help to increase the tagged faces by sex.
+The network is a binary classification network, thus, it has just one exit"""
 
 from datetime import datetime
 import torchvision

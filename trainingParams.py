@@ -2,13 +2,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 
+
 class TrainingParams:
     '''
     An object that contains all parameters the model needs for training: the architecture, loss criterions, num of epochs
     '''
 
-    def __init__(self, model, lr_initial, step_size, gamma, weight_decay, num_epochs):
-        self.model = model
+    def __init__(self, lr_initial, step_size, gamma, weight_decay, num_epochs):
+        self.model = None
         self.lr = lr_initial
         self.step_size = step_size
         self.gamma = gamma

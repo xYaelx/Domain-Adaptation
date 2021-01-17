@@ -1,11 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="21d8a8f8-3b11-4cb6-a052-99912a119430" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DataLoaders.py" beforeDir="false" afterPath="$PROJECT_DIR$/dataLoaders.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/training_model.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TrainingParams.py" beforeDir="false" afterPath="$PROJECT_DIR$/trainingParams.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sexClassification.py" beforeDir="false" afterPath="$PROJECT_DIR$/sexClassification.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,6 +48,7 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$USER_HOME$/Desktop/Novellus" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -54,17 +72,59 @@
       <workItem from="1605022194321" duration="7425000" />
       <workItem from="1605431982199" duration="16053000" />
       <workItem from="1605787426190" duration="1253000" />
+      <workItem from="1605788866809" duration="11664000" />
+      <workItem from="1606222710272" duration="5835000" />
+      <workItem from="1607250118000" duration="1413000" />
+      <workItem from="1607875489916" duration="915000" />
+      <workItem from="1607958881999" duration="1036000" />
+      <workItem from="1609335366962" duration="2396000" />
+      <workItem from="1609411715030" duration="852000" />
+      <workItem from="1609845322523" duration="846000" />
+      <workItem from="1609884015093" duration="326000" />
+      <workItem from="1610885690669" duration="3368000" />
     </task>
+    <task id="LOCAL-00001" summary="changed files names">
+      <created>1605788987828</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1605788987829</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="1" />
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="changed files names" />
+    <option name="LAST_COMMIT_MESSAGE" value="changed files names" />
   </component>
   <component name="WindowStateProjectService">
+    <state x="321" y="77" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog" timestamp="1609882136106">
+      <screen x="0" y="0" width="1280" height="680" />
+    </state>
+    <state x="321" y="77" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/0.0.1280.680@0.0.1280.680" timestamp="1609882136106" />
     <state x="264" y="0" key="CommitChangelistDialog2" timestamp="1605788797494">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
     <state x="264" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1605788797494" />
+    <state x="421" y="96" key="FileChooserDialogImpl" timestamp="1607881956115">
+      <screen x="0" y="0" width="1280" height="680" />
+    </state>
+    <state x="421" y="96" key="FileChooserDialogImpl/0.0.1280.680@0.0.1280.680" timestamp="1607881956115" />
     <state x="142" y="0" key="SettingsEditor" timestamp="1605787569333">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
