@@ -41,6 +41,7 @@ linear_model_selector = {
 
 class Discriminator(nn.Module):
     def __init__(self, num_ftrs):
+        super(Discriminator, self).__init__()
         self._module = nn.Sequential(
             GradientReversal(),
             nn.Linear(num_ftrs, 50),
@@ -59,6 +60,7 @@ class AdversarialModel(nn.Module):
     _discriminator: nn.Module
 
     def __init__(self,full_classifier: nn.Module, use_discriminator: bool, num_classes: int):
+        super(AdversarialModel, self).__init__()
         self.use_discriminator = use_discriminator
         num_ftrs = full_classifier.fc.in_features
         #         self._feature_extracgtor = nn.Sequential(full_classfier.layers[:-1])
