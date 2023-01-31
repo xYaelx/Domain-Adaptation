@@ -1,4 +1,4 @@
-from utils import NET_ARCHICECTURE
+from utils import NetArchitecture
 import torch.nn as nn
 from torch.autograd import Function
 from torchvision import models
@@ -33,9 +33,9 @@ def lin_three_fc(num_ftrs, num_classes):
 
 
 linear_model_selector = {
-    NET_ARCHICECTURE.ONE_FC: lin_one_fc,
-    NET_ARCHICECTURE.TWO_FC: lin_two_fc,
-    NET_ARCHICECTURE.THREE_FC: lin_three_fc,
+    NetArchitecture.ONE_FC: lin_one_fc,
+    NetArchitecture.TWO_FC: lin_two_fc,
+    NetArchitecture.THREE_FC: lin_three_fc,
 }
 
 
@@ -90,13 +90,13 @@ def get_activation(name):
 
 
 linear_model_selector = {
-    NET_ARCHICECTURE.ONE_FC: lin_one_fc,
-    NET_ARCHICECTURE.TWO_FC: lin_two_fc,
-    NET_ARCHICECTURE.THREE_FC: lin_three_fc,
+    NetArchitecture.ONE_FC: lin_one_fc,
+    NetArchitecture.TWO_FC: lin_two_fc,
+    NetArchitecture.THREE_FC: lin_three_fc,
 }
 
 
-def get_model(device, class_names, architecture: NET_ARCHICECTURE):
+def get_model(device, class_names, architecture: NetArchitecture):
     assert architecture in linear_model_selector.keys()
     model_conv = models.resnet18(pretrained=True)
     # model_conv = models.resnet50(pretrained=True)

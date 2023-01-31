@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from trainer import Trainer, TrainingParams
 from model import get_model
 
-from utils import NET_ARCHICECTURE
+from utils import NetArchitecture
 
 DATA_DIR = 'Data'
 DATA_DIR_M = 'Data/Male'
@@ -66,7 +66,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # imshow(sample_train_images, title=[class_names[i] for i in classes])
 
 def run_experiment(use_discriminator, domain1_dataloader, domain2_dataloader, test_dataloader, training_params,
-                   architecure: NET_ARCHICECTURE):
+                   architecure: NetArchitecture):
     """
     Gets all hyper parameters and creates the relevant optimizer and scheduler according to those params
 

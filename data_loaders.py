@@ -33,14 +33,14 @@ class DataLoaders:
         }
         self.image_dataset = {x: datasets.ImageFolder(path.join(data_dir, x), self.data_transforms[x])
                               for x in ['train', 'val']}
-        self.classes= self.image_dataset['train'].classes
+        self.classes = self.image_dataset['train'].classes
 
         self.val_same_as_train = val_same_as_train
         self.data, self.dataset_size = self.create_train_val_slice(self.image_dataset, sample_size=self.sample_size,
-                                                                    val_same_as_train=self.val_same_as_train)
+                                                                   val_same_as_train=self.val_same_as_train)
 
     def create_train_val_slice(self, image_datasets, sample_size=None, val_same_as_train=False):
-        img_dataset = image_datasets # reminder - this is a generator
+        img_dataset = image_datasets  # reminder - this is a generator
 
         # clone the image_datasets_reduced[train] generator for the val
         if val_same_as_train:
@@ -56,9 +56,5 @@ class DataLoaders:
             dataset_sizes = {x: len(img_dataset[x]) for x in ['train', 'val']}
 
         dataloaders = {x: data.DataLoader(img_dataset[x], batch_size=self.batch_size,
-                                                      shuffle=True, num_workers=0) for x in ['train', 'val']}
+                                          shuffle=True, num_workers=0) for x in ['train', 'val']}
         return dataloaders, dataset_sizes
-
-
-
-
