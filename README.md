@@ -35,7 +35,7 @@ domains are made similar (as indistinguishable as possible for the domain classi
 
 
 ### Project files
-1. dataLoaders.py - DataLoader object
+1. data_loaders.py - DataLoader object
 2. model.py - all functions that create the model(network) architecture
 3. network.py
 4. trainer.py - Trainer object. Contains the training, evaluation and test functions
